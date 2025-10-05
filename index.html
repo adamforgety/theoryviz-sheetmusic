@@ -10,15 +10,13 @@
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- CRITICAL FIX: Loading VexFlow as a global script (CJS Bundle) -->
-    <!-- Using the unpkg link again, but adding robust retry logic in JS to wait for the library. -->
-    <script src="https://unpkg.com/vexflow@4.2.1/build/cjs/vexflow-min.js"></script>
+    <!-- IMPORTANT: VexFlow library link removed. Rendering is now done using native HTML Canvas to ensure 100% compatibility. -->
 
     <style>
-        /* Custom styles for the SVG container */
+        /* Custom styles for the Canvas container */
         .sheet-music-container {
             width: 100%;
-            min-height: 250px; 
+            height: 250px; /* Fixed height for the grand staff */
             background-color: #f9fafb;
             border-radius: 0.5rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
@@ -29,10 +27,10 @@
             position: relative; 
         }
 
-        /* VexFlow SVGs need to be told to fill their container */
-        .sheet-music-container > svg {
-            width: 100%;
-            height: 100%;
+        /* Ensure Canvas fills its container */
+        #music-canvas {
+            display: block;
+            background-color: transparent;
         }
 
         /* Custom style for visualization buttons */
@@ -110,10 +108,9 @@
             <!-- Content populated by JS -->
         </div>
 
-        <!-- SHEET MUSIC CONTAINER -->
+        <!-- SHEET MUSIC CONTAINER (NOW CONTAINS CANVAS) -->
         <div id="sheet-music-view" class="sheet-music-container">
-            <!-- Initial content will be overwritten by JS -->
-            <p class="text-gray-500 text-center text-sm absolute inset-0 flex items-center justify-center">Initializing...</p>
+            <canvas id="music-canvas" width="600" height="250"></canvas>
         </div>
         
         <!-- ENHANCED INVERSION INTERACTION TIP -->
@@ -128,12 +125,55 @@
         
     </div>
 
-    <!-- Application Script (Relies on global VF object loaded above) -->
+    <!-- Application Script (Now fully self-contained) -->
     <script>
         
         // --- CONSTANTS AND MAPPING ---
         const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        const VF_PITCH_MAP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        
+        // --- CANVAS CONSTANTS ---
+        const LINE_SPACING = 10; // Vertical distance between staff lines
+        const NOTE_RADIUS = 7;
+        const STAVE_Y_START_TREBLE = 50;
+        const STAVE_Y_START_BASS = 150;
+        const GRAND_STAFF_WIDTH = 5; // Pixels
+        
+        // MIDI Note (60=C4) to staff line Y position (relative to clef top line)
+        // Note: Y increases downwards in Canvas
+        const MIDI_TO_Y_MAP = {
+            // Treble Clef Notes (C4 = 60 to E6 = 88)
+            88: STAVE_Y_START_TREBLE + (LINE_SPACING * -4), // E6 (3rd ledger line above)
+            86: STAVE_Y_START_TREBLE + (LINE_SPACING * -3), // D6 (3rd space above)
+            84: STAVE_Y_START_TREBLE + (LINE_SPACING * -2), // C6 (2nd ledger line above)
+            83: STAVE_Y_START_TREBLE + (LINE_SPACING * -1.5), // B5 (2nd space above)
+            81: STAVE_Y_START_TREBLE + (LINE_SPACING * -0.5), // A5 (1st space above)
+            79: STAVE_Y_START_TREBLE + (LINE_SPACING * 0.5), // G5 (Top space)
+            77: STAVE_Y_START_TREBLE + (LINE_SPACING * 1.5), // F5 (4th space)
+            76: STAVE_Y_START_TREBLE + (LINE_SPACING * 2), // E5 (Top line)
+            74: STAVE_Y_START_TREBLE + (LINE_SPACING * 3), // D5 (4th line)
+            72: STAVE_Y_START_TREBLE + (LINE_SPACING * 4), // C5 (Middle line)
+            71: STAVE_Y_START_TREBLE + (LINE_SPACING * 4.5), // B4 (3rd space)
+            69: STAVE_Y_START_TREBLE + (LINE_SPACING * 5.5), // A4 (2nd space)
+            67: STAVE_Y_START_TREBLE + (LINE_SPACING * 6.5), // G4 (1st space)
+            65: STAVE_Y_START_TREBLE + (LINE_SPACING * 7.5), // F4 (Bottom space)
+            64: STAVE_Y_START_TREBLE + (LINE_SPACING * 8), // E4 (Bottom line)
+            62: STAVE_Y_START_TREBLE + (LINE_SPACING * 9), // D4 (1st space below)
+            60: STAVE_Y_START_TREBLE + (LINE_SPACING * 10), // C4 (1st ledger line below)
+
+            // Bass Clef Notes (B3 = 59 to C2 = 36)
+            59: STAVE_Y_START_BASS + (LINE_SPACING * 0), // B3 (Top line)
+            57: STAVE_Y_START_BASS + (LINE_SPACING * 1), // A3 (Top space)
+            55: STAVE_Y_START_BASS + (LINE_SPACING * 2), // G3 (4th line)
+            53: STAVE_Y_START_BASS + (LINE_SPACING * 3), // F3 (4th space)
+            52: STAVE_Y_START_BASS + (LINE_SPACING * 4), // E3 (Middle line)
+            50: STAVE_Y_START_BASS + (LINE_SPACING * 5), // D3 (3rd space)
+            48: STAVE_Y_START_BASS + (LINE_SPACING * 6), // C3 (2nd line)
+            47: STAVE_Y_START_BASS + (LINE_SPACING * 6.5), // B2 (2nd space)
+            45: STAVE_Y_START_BASS + (LINE_SPACING * 7.5), // A2 (1st space)
+            43: STAVE_Y_START_BASS + (LINE_SPACING * 8.5), // G2 (Bottom space)
+            41: STAVE_Y_START_BASS + (LINE_SPACING * 10), // F2 (1st ledger line below)
+        };
         
         // --- MUSIC THEORY DATA ---
         const SCALE_MODES = {
@@ -145,7 +185,6 @@
                 chordSteps: [0, 2, 4], 
                 degrees: 8, 
                 isDiatonic: true,
-                keySignatureRoot: 0 
             },
             'natural_minor': {
                 name: 'Aeolian (Natural Minor)',
@@ -155,7 +194,6 @@
                 chordSteps: [0, 2, 4],
                 degrees: 8,
                 isDiatonic: true,
-                keySignatureRoot: 3 
             },
             'harmonic_minor': {
                 name: 'Harmonic Minor',
@@ -165,7 +203,6 @@
                 chordSteps: [0, 2, 4],
                 degrees: 8,
                 isDiatonic: true,
-                keySignatureRoot: 0 
             },
             'major_pentatonic': {
                 name: 'Major Pentatonic',
@@ -196,7 +233,7 @@
             visualizationMode: 'chord', 
         };
         
-        let rendererInstance = null; 
+        let canvas, ctx; 
         
         // --- CORE MUSIC THEORY LOGIC ---
         
@@ -204,12 +241,6 @@
             return SCALE_MODES[state.currentModeId];
         }
 
-        function midiToVexFlow(midi) {
-            const note = midi % 12;
-            const octave = Math.floor(midi / 12);
-            return `${VF_PITCH_MAP[note]}/${octave}`;
-        }
-        
         function calculateChordMidiNotes(keyIndex, degree, inversion) {
             const mode = getCurrentMode();
             const scaleIntervals = mode.intervals;
@@ -217,13 +248,16 @@
             const octaveShift = (degree === 8) ? 12 : 0;
             const scaleDegreeIndex = (degree === 8) ? 0 : degree - 1; 
 
+            // Start from C4 (MIDI 60) + Key Offset
             const tonicMidi = 60 + keyIndex; 
 
+            // Handle scale view or non-triad scales
             if (!mode.isDiatonic || mode.intervals.length < 7 || state.visualizationMode === 'scale') {
                 let intervalOffset = scaleIntervals[scaleDegreeIndex];
                 return [tonicMidi + intervalOffset + octaveShift];
             }
             
+            // Handle chord view for diatonic scales
             const stepsInChord = mode.chordSteps; 
             let chordMidi = [];
 
@@ -234,6 +268,7 @@
                 chordMidi.push(tonicMidi + interval + octaveShift);
             }
             
+            // Apply Inversion logic
             if (degree <= 7) {
                 for (let i = 0; i < inversion; i++) {
                     const lowestNote = chordMidi.shift(); 
@@ -241,147 +276,167 @@
                 }
             }
             
-            // Filter to display notes in the range C4 (60) to E6 (88)
-            return chordMidi.filter(midi => midi >= 60 && midi <= 88); 
+            // Filter to display notes in the range (approx C2=36 to E6=88 for grand staff visibility)
+            return chordMidi.filter(midi => MIDI_TO_Y_MAP[midi] !== undefined); 
         }
 
-        function calculateKeySignature(keyIndex, mode) {
-            if (!mode.isDiatonic || mode.intervals.length < 7) {
-                return KEYS[keyIndex]; 
+        // --- CANVAS RENDERING (Custom Implementation) ---
+
+        function drawStaff(ctx, x, y, width) {
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const lineY = y + i * LINE_SPACING;
+                ctx.moveTo(x, lineY);
+                ctx.lineTo(x + width, lineY);
             }
-            
-            const majorKeyEquivalentIndex = (keyIndex - mode.keySignatureRoot + 12) % 12;
-            const sigRootName = KEYS[majorKeyEquivalentIndex];
-            
-            // Use common flat equivalents for sharp keys with too many sharps (VexFlow preference)
-            if (sigRootName === 'C#') return 'Db';
-            if (sigRootName === 'G#') return 'Ab';
-            if (sigRootName === 'D#') return 'Eb';
-            if (sigRootName === 'A#') return 'Bb';
-            if (sigRootName === 'F#') return 'Gb';
-            
-            return sigRootName;
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#333';
+            ctx.stroke();
         }
 
-        // --- VEXFLOW RENDERING ---
+        function drawClef(ctx, clefType, x, y) {
+            ctx.fillStyle = '#333';
+            // Use a music font for a basic representation, or fall back to a large letter
+            ctx.font = '70px serif'; 
+
+            if (clefType === 'treble') {
+                // Approximate G-Clef (Treble) position
+                ctx.fillText('𝄞', x + 5, y + 40); 
+                // Fallback to G if music font fails:
+                // ctx.fillText('G', x + 10, y + 40); 
+            } else if (clefType === 'bass') {
+                // Approximate F-Clef (Bass) position
+                ctx.fillText('𝄢', x + 5, y + 40);
+                // Fallback to F if music font fails:
+                // ctx.fillText('F', x + 10, y + 40); 
+            }
+        }
+        
+        function drawNotes(ctx, x, notesMidi) {
+            const numNotes = notesMidi.length;
+            const noteColor = '#C20000'; // Highlight color for emphasis
+            
+            notesMidi.forEach((midi, index) => {
+                const noteName = NOTE_NAMES[midi % 12];
+                const noteOctave = Math.floor(midi / 12);
+                const y = MIDI_TO_Y_MAP[midi];
+                
+                if (y === undefined) return; 
+
+                // Note head
+                ctx.beginPath();
+                // x position is fixed for all notes in a chord
+                const noteX = x + 100; 
+                ctx.ellipse(noteX, y, NOTE_RADIUS, NOTE_RADIUS * 0.8, -0.1, 0, 2 * Math.PI);
+                ctx.fillStyle = noteColor;
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Stem (draw only if it's the highest or lowest note of the chord)
+                if (numNotes === 1 || midi === Math.min(...notesMidi) || midi === Math.max(...notesMidi)) {
+                    const stemLength = 30;
+                    ctx.beginPath();
+                    // Stem direction depends on whether it's above or below the middle line (B4/D3)
+                    const isHighNote = y <= (STAVE_Y_START_TREBLE + 40);
+                    const stemDirection = isHighNote ? -1 : 1;
+                    
+                    const stemX = noteX + (stemDirection * NOTE_RADIUS * 0.5);
+                    const stemYStart = y;
+                    const stemYEnd = y + (stemDirection * stemLength);
+
+                    ctx.moveTo(stemX, stemYStart);
+                    ctx.lineTo(stemX, stemYEnd);
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = noteColor;
+                    ctx.stroke();
+                }
+
+                // Ledger Lines (for notes outside the 5 main lines)
+                const isTreble = y < STAVE_Y_START_BASS;
+                const topLineY = isTreble ? STAVE_Y_START_TREBLE : STAVE_Y_START_BASS;
+                const bottomLineY = topLineY + 4 * LINE_SPACING;
+
+                if (y < topLineY || y > bottomLineY) {
+                    let ledgerY = y;
+                    
+                    // Center the ledger line on the note head
+                    if ((ledgerY - topLineY) % LINE_SPACING !== 0) {
+                         // Adjust to the nearest line (for notes in spaces)
+                         ledgerY = Math.round(ledgerY / LINE_SPACING) * LINE_SPACING;
+                    }
+
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 1;
+
+                    // Draw ledger line
+                    ctx.beginPath();
+                    ctx.moveTo(noteX - 10, ledgerY);
+                    ctx.lineTo(noteX + 10, ledgerY);
+                    ctx.stroke();
+                }
+
+                // Accidentals (Simplified: only draw if flat/sharp in the name)
+                if (noteName.includes('#') || noteName.includes('b')) {
+                    const accidental = noteName.includes('#') ? '#' : 'b';
+                    ctx.font = '24px Arial';
+                    ctx.fillStyle = noteColor;
+                    ctx.fillText(accidental, noteX - 30, y + 8); 
+                }
+            });
+        }
+
 
         function renderSheetMusic() {
             const container = document.getElementById('sheet-music-view');
-            
-            // CRITICAL CHECK for global VexFlow (VF) object
-            if (typeof VF === 'undefined' || typeof VF.Renderer === 'undefined') {
-                 // The retry logic in initApp handles the error display on failure.
-                 console.error("VexFlow is not defined in renderSheetMusic. Initialization failed.");
-                 return;
-            }
-            
-            // Destructure necessary components from the global VF object
-            const { Renderer, Stave, Formatter, StaveNote, Accidental, KeySignature, StaveConnector } = VF;
+            canvas = document.getElementById('music-canvas');
+            ctx = canvas.getContext('2d');
 
-            // Ensure the context is clear before drawing again
-            if (rendererInstance) {
-                rendererInstance.getContext().clear();
-            }
+            const containerRect = container.getBoundingClientRect();
+            // Set canvas size to container size for responsiveness
+            const width = Math.max(containerRect.width, 300); 
+            const height = 250; 
             
-            const mode = getCurrentMode();
+            canvas.width = width;
+            canvas.height = height;
+
+            // Clear the canvas
+            ctx.clearRect(0, 0, width, height);
+            
             const notes = calculateChordMidiNotes(state.currentKeyIndex, state.currentDegree, state.currentInversion);
-            const keySignatureName = calculateKeySignature(state.currentKeyIndex, mode);
             
             if (notes.length === 0) {
-                 container.innerHTML = `<p class="text-gray-500 text-center text-sm absolute inset-0 flex items-center justify-center">No notes in the display range.</p>`;
+                 ctx.fillStyle = '#9ca3af';
+                 ctx.font = '16px sans-serif';
+                 ctx.textAlign = 'center';
+                 ctx.fillText("No notes in the display range.", width / 2, height / 2);
                  return;
-            } else {
-                 // Clear any previous error/empty message
-                 if (container.querySelector('p.text-red-500')) {
-                     container.innerHTML = '';
-                 }
             }
 
-            const rect = container.getBoundingClientRect();
-            const width = Math.max(rect.width, 300); 
-            const height = 250; 
+            const staffX = 50;
+            const staffWidth = width - staffX - 20;
 
-            // 1. Setup Renderer
-            if (!rendererInstance) {
-                rendererInstance = new Renderer(container, Renderer.Backends.SVG);
-            }
-            rendererInstance.resize(width, height);
-            const context = rendererInstance.getContext();
-            context.clearRect(0, 0, width, height);
+            // 1. Draw Staves
+            drawStaff(ctx, staffX, STAVE_Y_START_TREBLE, staffWidth);
+            drawStaff(ctx, staffX, STAVE_Y_START_BASS, staffWidth);
+
+            // 2. Draw Clefs
+            drawClef(ctx, 'treble', staffX, STAVE_Y_START_TREBLE);
+            drawClef(ctx, 'bass', staffX, STAVE_Y_START_BASS);
             
-            const staveX = 10; 
-            const staveWidth = width - 20; 
+            // 3. Draw Grand Staff connector (brace)
+            ctx.beginPath();
+            ctx.moveTo(staffX - GRAND_STAFF_WIDTH, STAVE_Y_START_TREBLE);
+            ctx.lineTo(staffX + 5, STAVE_Y_START_TREBLE);
+            ctx.lineTo(staffX + 5, STAVE_Y_START_BASS + 4 * LINE_SPACING);
+            ctx.lineTo(staffX - GRAND_STAFF_WIDTH, STAVE_Y_START_BASS + 4 * LINE_SPACING);
+            ctx.lineWidth = GRAND_STAFF_WIDTH;
+            ctx.strokeStyle = '#333';
+            ctx.stroke();
             
-            // 2. Create Staves
-            const trebleStave = new Stave(staveX, 0, staveWidth); 
-            trebleStave.addClef("treble");
-            trebleStave.addKeySignature(keySignatureName);
-            trebleStave.setContext(context).draw();
-
-            const bassStave = new Stave(staveX, 100, staveWidth); 
-            bassStave.addClef("bass");
-            bassStave.addKeySignature(keySignatureName);
-            bassStave.setContext(context).draw();
-            
-            // 3. Connect Staves
-            const connector = new StaveConnector(trebleStave, bassStave);
-            connector.setType(StaveConnector.type.BRACE);
-            connector.setContext(context).draw();
-
-
-            // 4. Note Rendering
-            const vfNotes = notes.map(midi => midiToVexFlow(midi));
-            // Split notes for grand staff (C4 and above on Treble, B3 and below on Bass)
-            const trebleNotes = vfNotes.filter(n => parseInt(n.split('/')[1]) >= 4); 
-            const bassNotes = vfNotes.filter(n => parseInt(n.split('/')[1]) < 4);    
-
-            
-            const createVfStaveNote = (noteStrings, clef) => {
-                if (noteStrings.length === 0) return null;
-                
-                const vfStaveNote = new StaveNote({
-                    clef: clef,
-                    keys: noteStrings,
-                    duration: "w" 
-                });
-                
-                // Add explicit accidentals for non-diatonic notes
-                const keySig = new KeySignature(keySignatureName);
-                vfStaveNote.getKeys().forEach((key, index) => {
-                    const pitch = key.split('/')[0];
-
-                    if (keySig.getAccidental(pitch) === null) {
-                        const noteNameOnly = noteStrings[index].split('/')[0];
-                        if (noteNameOnly.includes('#')) {
-                             vfStaveNote.addModifier(new Accidental('#'), index);
-                        } else if (noteNameOnly.includes('b')) {
-                             vfStaveNote.addModifier(new Accidental('b'), index);
-                        }
-                    }
-                });
-                
-                return vfStaveNote;
-            };
-
-            const trebleNote = createVfStaveNote(trebleNotes, "treble");
-            const bassNote = createVfStaveNote(bassNotes, "bass");
-            
-            const notesToDraw = [];
-            if (trebleNote) notesToDraw.push(trebleNote);
-            if (bassNote) notesToDraw.push(bassNote);
-
-            // 5. Format and Draw
-            if (notesToDraw.length > 0) {
-                const trebleNotesToDraw = notesToDraw.filter(n => n.clef === 'treble');
-                const bassNotesToDraw = notesToDraw.filter(n => n.clef === 'bass');
-                
-                if (trebleNotesToDraw.length > 0) {
-                    Formatter.FormatAndDraw(context, trebleStave, trebleNotesToDraw, { auto_beam: false, align_rests: true, max_width: staveWidth - 100 });
-                }
-                if (bassNotesToDraw.length > 0) {
-                     Formatter.FormatAndDraw(context, bassStave, bassNotesToDraw, { auto_beam: false, align_rests: true, max_width: staveWidth - 100 });
-                }
-            }
+            // 4. Draw Notes
+            drawNotes(ctx, staffX, notes);
         }
         
         // --- HANDLERS (EXPOSED GLOBALLY) ---
@@ -389,10 +444,8 @@
         let resizeTimer;
         function debouncedRenderSheetMusic() {
             clearTimeout(resizeTimer);
-            // Only attempt to render if VexFlow is successfully loaded
-            if (typeof VF !== 'undefined' && typeof VF.Renderer !== 'undefined') {
-                resizeTimer = setTimeout(renderSheetMusic, 150);
-            }
+            // Wait for dimensions to settle after resize
+            resizeTimer = setTimeout(renderSheetMusic, 150);
         }
         
         // Expose functions globally for HTML event handlers (onclick, onchange)
@@ -508,6 +561,7 @@
             renderConsolidatedDisplay(); 
             renderVisualizationModeButtons(); 
             
+            // Render using the new Canvas implementation
             renderSheetMusic(); 
         }
 
@@ -525,7 +579,7 @@
             let modesToRender = allModes;
             let currentModeExists = true;
             
-            // If in Chord View, only show Diatonic scales (Major, Minor, Harmonic Minor)
+            // If in Chord View, only show Diatonic scales
             if (state.visualizationMode === 'chord') {
                 modesToRender = allModes.filter(([id, mode]) => 
                     mode.isDiatonic && mode.intervals.length === 7
@@ -585,7 +639,7 @@
             
             const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord';
 
-            // Adjust grid layout based on number of degrees (e.g., 5 for pentatonic, 8 for diatonic)
+            // Adjust grid layout based on number of degrees 
             container.classList.remove('sm:grid-cols-5', 'sm:grid-cols-7', 'sm:grid-cols-8');
             container.classList.add(numDegrees === 8 ? 'sm:grid-cols-8' : 'sm:grid-cols-5');
 
@@ -671,41 +725,16 @@
             document.head.appendChild(link);
         }
         
-        // --- APPLICATION STARTUP (WITH RETRY LOGIC) ---
+        // --- APPLICATION STARTUP ---
 
         function initApp() {
-             const container = document.getElementById('sheet-music-view');
-             container.innerHTML = ''; 
-
-             const maxRetries = 10;
-             let retryCount = 0;
-             const checkInterval = 200; // Check every 200ms
-
-             function attemptInit() {
-                 // Check if the global VexFlow object is available
-                 if (typeof VF !== 'undefined' && typeof VF.Renderer !== 'undefined') {
-                     console.log("VexFlow loaded successfully. Initializing application.");
-                     
-                     // Success! Delay initial render slightly for stable dimensions
-                     setTimeout(() => {
-                         updateUI();
-                     }, 300); 
-                     
-                     window.addEventListener('resize', debouncedRenderSheetMusic); 
-                     registerPwa();
-                 } else if (retryCount < maxRetries) {
-                     retryCount++;
-                     // Use console.warn for retries to avoid unnecessary errors
-                     console.warn(`VexFlow not found yet. Retrying... (${retryCount}/${maxRetries})`);
-                     setTimeout(attemptInit, checkInterval);
-                 } else {
-                     // Failure after all retries
-                     console.error("VexFlow global object (VF) is not defined after multiple retries. Application cannot initialize.");
-                     container.innerHTML = `<p class="text-red-500 text-center text-sm absolute inset-0 flex items-center justify-center">Critical Error: Music library failed to load after repeated attempts. This may be due to environment restrictions.</p>`;
-                 }
-             }
+             // We no longer check for VexFlow (VF). Initialization is guaranteed.
+             console.log("Application initialized using native HTML Canvas rendering.");
              
-             attemptInit();
+             updateUI();
+             
+             window.addEventListener('resize', debouncedRenderSheetMusic); 
+             registerPwa();
         }
 
         // Start the main application once the document is fully loaded
