@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TheoryViz - Sheet Music Visualizer</title>
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#3b82f6">
+
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- CRITICAL FIX: Loading VexFlow as a global script (CJS Bundle) -->
+    <!-- Attempting a different CDN (unpkg) to bypass environment's strict Content Security Policy (CSP) blocking the previous link. -->
+    <script src="https://unpkg.com/vexflow@4.2.1/build/cjs/vexflow-min.js"></script>
+
+    <style>
+        /* Custom styles for the SVG container */
+        .sheet-music-container {
+            width: 100%;
+            min-height: 250px; 
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative; 
+        }
+
+        /* VexFlow SVGs need to be told to fill their container */
+        .sheet-music-container > svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Custom style for visualization buttons */
+        .viz-btn {
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            font-weight: 600;
+            padding-top: 0.625rem;
+            padding-bottom: 0.625rem;
+            border-width: 1px;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Styling for the disabled state of the chord buttons */
+        .viz-btn.disabled-mode {
+            background-color: #e5e7eb !important;
+            color: #9ca3af !important;
+            border-color: #d1d5db !important;
+            cursor: not-allowed;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+    </style>
+</head>
+<body class="bg-gray-50 font-sans p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-10">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3 text-center">
+            TheoryViz
+        </h1>
+        <p class="text-center text-gray-600 mb-6">
+            Dedicated Sheet Music Visualizer
+        </p>
+
+        <!-- CONSOLIDATED CONTROL PANEL -->
+        <div class="p-4 bg-gray-100 rounded-xl mb-6 shadow-inner border border-gray-200">
+            <!-- Strict 2-column grid layout for maximum compactness -->
+            <div class="grid grid-cols-2 gap-4">
+            
+                <!-- 1. Root Key Selection (Top Left) -->
+                <div>
+                    <label for="key-select" class="block text-xs font-medium text-gray-700 mb-1">Root Key</label>
+                    <select id="key-select" onchange="handleKeyChange(event.target.value)"
+                            class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+
+                <!-- 2. Mode Selection (Top Right) -->
+                <div>
+                    <label for="mode-select" class="block text-xs font-medium text-gray-700 mb-1">Scale Type</label>
+                    <select id="mode-select" onchange="handleModeChange(event.target.value)"
+                            class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+
+                <!-- 3. Chord View Button (Bottom Left) -->
+                <button id="mode-chord-btn" onclick="handleVisualizationModeChange('chord')"
+                        class="viz-btn w-full text-sm md:text-base">
+                    Chord View
+                </button>
+                
+                <!-- 4. Scale View Button (Bottom Right) -->
+                <button id="mode-scale-btn" onclick="handleVisualizationModeChange('scale')"
+                        class="viz-btn w-full text-sm md:text-base">
+                    Scale View
+                </button>
+            </div>
+        </div>
+        
+        <!-- CONSOLIDATED DISPLAY -->
+        <div id="consolidated-display" class="mb-4 py-3 px-4 bg-blue-50 text-blue-800 rounded-lg shadow-inner border border-blue-200 text-center">
+            <!-- Content populated by JS -->
+        </div>
+
+        <!-- SHEET MUSIC CONTAINER -->
+        <div id="sheet-music-view" class="sheet-music-container">
+            <!-- Initial content will be overwritten by JS -->
+            <p class="text-gray-500 text-center text-sm absolute inset-0 flex items-center justify-center">Initializing...</p>
+        </div>
+        
+        <!-- ENHANCED INVERSION INTERACTION TIP -->
+        <div id="inversion-tip" class="mt-4 mb-6 py-3 px-4 bg-yellow-100 border-2 border-yellow-400 text-yellow-800 text-sm rounded-lg text-center font-bold shadow-md hidden">
+            Click the <span class="text-blue-700 font-extrabold">ACTIVE</span> Roman numeral to cycle <span class="text-indigo-700">INVERSIONS</span> (Root, 1st, 2nd) in Chord View.
+        </div>
+
+        <!-- Chord Buttons (Scale Degree Selector) -->
+        <div id="chord-buttons-container" class="grid grid-cols-4 sm:grid-cols-7 gap-3">
+            <!-- Buttons will be dynamically generated here -->
+        </div>
+        
+    </div>
+
+    <!-- Application Script (Relies on global VF object loaded above) -->
+    <script>
+        
+        // --- CONSTANTS AND MAPPING ---
+        const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const VF_PITCH_MAP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        
+        // --- MUSIC THEORY DATA ---
+        const SCALE_MODES = {
+            'major': {
+                name: 'Ionian (Major)',
+                intervals: [0, 2, 4, 5, 7, 9, 11],
+                triadQualities: ["Maj", "min", "min", "Maj", "Maj", "min", "dim", "Maj"], 
+                qualities: ["I", "ii", "iii", "IV", "V", "vi", "vii°", "VIII (I)"], 
+                chordSteps: [0, 2, 4], 
+                degrees: 8, 
+                isDiatonic: true,
+                keySignatureRoot: 0 
+            },
+            'natural_minor': {
+                name: 'Aeolian (Natural Minor)',
+                intervals: [0, 2, 3, 5, 7, 8, 10],
+                triadQualities: ["min", "dim", "Maj", "min", "min", "Maj", "Maj", "min"],
+                qualities: ["i", "ii°", "III", "iv", "v", "VI", "VII", "viii (i)"],
+                chordSteps: [0, 2, 4],
+                degrees: 8,
+                isDiatonic: true,
+                keySignatureRoot: 3 
+            },
+            'harmonic_minor': {
+                name: 'Harmonic Minor',
+                intervals: [0, 2, 3, 5, 7, 8, 11], 
+                triadQualities: ["min", "dim", "Aug", "min", "Maj", "Maj", "dim", "min"], 
+                qualities: ["i", "ii°", "III+", "iv", "V", "VI", "vii°", "viii (i)"],
+                chordSteps: [0, 2, 4],
+                degrees: 8,
+                isDiatonic: true,
+                keySignatureRoot: 0 
+            },
+            'major_pentatonic': {
+                name: 'Major Pentatonic',
+                intervals: [0, 2, 4, 7, 9],
+                triadQualities: ["", "", "", "", ""], 
+                qualities: ["1", "2", "3", "4", "5"], 
+                chordSteps: [0], 
+                degrees: 5,
+                isDiatonic: false
+            },
+            'minor_pentatonic': {
+                name: 'Minor Pentatonic',
+                intervals: [0, 3, 5, 7, 10],
+                triadQualities: ["", "", "", "", ""],
+                qualities: ["1", "2", "3", "4", "5"], 
+                chordSteps: [0],
+                degrees: 5,
+                isDiatonic: false
+            }
+        };
+
+        // --- STATE ---
+        let state = {
+            currentKeyIndex: 0, 
+            currentModeId: 'major', 
+            currentDegree: 1, 
+            currentInversion: 0, 
+            visualizationMode: 'chord', 
+        };
+        
+        let rendererInstance = null; 
+        
+        // --- CORE MUSIC THEORY LOGIC ---
+        
+        function getCurrentMode() {
+            return SCALE_MODES[state.currentModeId];
+        }
+
+        function midiToVexFlow(midi) {
+            const note = midi % 12;
+            const octave = Math.floor(midi / 12);
+            return `${VF_PITCH_MAP[note]}/${octave}`;
+        }
+        
+        function calculateChordMidiNotes(keyIndex, degree, inversion) {
+            const mode = getCurrentMode();
+            const scaleIntervals = mode.intervals;
+            
+            const octaveShift = (degree === 8) ? 12 : 0;
+            const scaleDegreeIndex = (degree === 8) ? 0 : degree - 1; 
+
+            const tonicMidi = 60 + keyIndex; 
+
+            if (!mode.isDiatonic || mode.intervals.length < 7 || state.visualizationMode === 'scale') {
+                let intervalOffset = scaleIntervals[scaleDegreeIndex];
+                return [tonicMidi + intervalOffset + octaveShift];
+            }
+            
+            const stepsInChord = mode.chordSteps; 
+            let chordMidi = [];
+
+            for (let step of stepsInChord) {
+                const index = (scaleDegreeIndex + step) % scaleIntervals.length;
+                let interval = scaleIntervals[index]; 
+                
+                chordMidi.push(tonicMidi + interval + octaveShift);
+            }
+            
+            if (degree <= 7) {
+                for (let i = 0; i < inversion; i++) {
+                    const lowestNote = chordMidi.shift(); 
+                    chordMidi.push(lowestNote + 12);     
+                }
+            }
+            
+            // Filter to display notes in the range C4 (60) to E6 (88)
+            return chordMidi.filter(midi => midi >= 60 && midi <= 88); 
+        }
+
+        function calculateKeySignature(keyIndex, mode) {
+            if (!mode.isDiatonic || mode.intervals.length < 7) {
+                return KEYS[keyIndex]; 
+            }
+            
+            const majorKeyEquivalentIndex = (keyIndex - mode.keySignatureRoot + 12) % 12;
+            const sigRootName = KEYS[majorKeyEquivalentIndex];
+            
+            // Use common flat equivalents for sharp keys with too many sharps (VexFlow preference)
+            if (sigRootName === 'C#') return 'Db';
+            if (sigRootName === 'G#') return 'Ab';
+            if (sigRootName === 'D#') return 'Eb';
+            if (sigRootName === 'A#') return 'Bb';
+            if (sigRootName === 'F#') return 'Gb';
+            
+            return sigRootName;
+        }
+
+        // --- VEXFLOW RENDERING ---
+
+        function renderSheetMusic() {
+            const container = document.getElementById('sheet-music-view');
+            
+            // CRITICAL CHECK for global VexFlow (VF) object
+            if (typeof VF === 'undefined' || typeof VF.Renderer === 'undefined') {
+                 console.error("VexFlow global object (VF) is not defined. Application cannot initialize.");
+                 container.innerHTML = `<p class="text-red-500 text-center text-sm absolute inset-0 flex items-center justify-center">Error: Music library failed to load (VF not found). Please try reloading the document in a standard browser environment.</p>`;
+                 return;
+            }
+            
+            // Destructure necessary components from the global VF object
+            const { Renderer, Stave, Formatter, StaveNote, Accidental, KeySignature, StaveConnector } = VF;
+
+            // Ensure the context is clear before drawing again
+            if (rendererInstance) {
+                rendererInstance.getContext().clear();
+            }
+            
+            const mode = getCurrentMode();
+            const notes = calculateChordMidiNotes(state.currentKeyIndex, state.currentDegree, state.currentInversion);
+            const keySignatureName = calculateKeySignature(state.currentKeyIndex, mode);
+            
+            if (notes.length === 0) {
+                 container.innerHTML = `<p class="text-gray-500 text-center text-sm absolute inset-0 flex items-center justify-center">No notes in the display range.</p>`;
+                 return;
+            } else {
+                 // Clear any previous error/empty message
+                 if (container.querySelector('p.text-red-500')) {
+                     container.innerHTML = '';
+                 }
+            }
+
+            const rect = container.getBoundingClientRect();
+            const width = Math.max(rect.width, 300); 
+            const height = 250; 
+
+            // 1. Setup Renderer
+            if (!rendererInstance) {
+                rendererInstance = new Renderer(container, Renderer.Backends.SVG);
+            }
+            rendererInstance.resize(width, height);
+            const context = rendererInstance.getContext();
+            context.clearRect(0, 0, width, height);
+            
+            const staveX = 10; 
+            const staveWidth = width - 20; 
+            
+            // 2. Create Staves
+            const trebleStave = new Stave(staveX, 0, staveWidth); 
+            trebleStave.addClef("treble");
+            trebleStave.addKeySignature(keySignatureName);
+            trebleStave.setContext(context).draw();
+
+            const bassStave = new Stave(staveX, 100, staveWidth); 
+            bassStave.addClef("bass");
+            bassStave.addKeySignature(keySignatureName);
+            bassStave.setContext(context).draw();
+            
+            // 3. Connect Staves
+            const connector = new StaveConnector(trebleStave, bassStave);
+            connector.setType(StaveConnector.type.BRACE);
+            connector.setContext(context).draw();
+
+
+            // 4. Note Rendering
+            const vfNotes = notes.map(midi => midiToVexFlow(midi));
+            // Split notes for grand staff (C4 and above on Treble, B3 and below on Bass)
+            const trebleNotes = vfNotes.filter(n => parseInt(n.split('/')[1]) >= 4); 
+            const bassNotes = vfNotes.filter(n => parseInt(n.split('/')[1]) < 4);    
+
+            
+            const createVfStaveNote = (noteStrings, clef) => {
+                if (noteStrings.length === 0) return null;
+                
+                const vfStaveNote = new StaveNote({
+                    clef: clef,
+                    keys: noteStrings,
+                    duration: "w" 
+                });
+                
+                // Add explicit accidentals for non-diatonic notes
+                const keySig = new KeySignature(keySignatureName);
+                vfStaveNote.getKeys().forEach((key, index) => {
+                    const pitch = key.split('/')[0];
+
+                    if (keySig.getAccidental(pitch) === null) {
+                        const noteNameOnly = noteStrings[index].split('/')[0];
+                        if (noteNameOnly.includes('#')) {
+                             vfStaveNote.addModifier(new Accidental('#'), index);
+                        } else if (noteNameOnly.includes('b')) {
+                             vfStaveNote.addModifier(new Accidental('b'), index);
+                        }
+                    }
+                });
+                
+                return vfStaveNote;
+            };
+
+            const trebleNote = createVfStaveNote(trebleNotes, "treble");
+            const bassNote = createVfStaveNote(bassNotes, "bass");
+            
+            const notesToDraw = [];
+            if (trebleNote) notesToDraw.push(trebleNote);
+            if (bassNote) notesToDraw.push(bassNote);
+
+            // 5. Format and Draw
+            if (notesToDraw.length > 0) {
+                const trebleNotesToDraw = notesToDraw.filter(n => n.clef === 'treble');
+                const bassNotesToDraw = notesToDraw.filter(n => n.clef === 'bass');
+                
+                if (trebleNotesToDraw.length > 0) {
+                    Formatter.FormatAndDraw(context, trebleStave, trebleNotesToDraw, { auto_beam: false, align_rests: true, max_width: staveWidth - 100 });
+                }
+                if (bassNotesToDraw.length > 0) {
+                     Formatter.FormatAndDraw(context, bassStave, bassNotesToDraw, { auto_beam: false, align_rests: true, max_width: staveWidth - 100 });
+                }
+            }
+        }
+        
+        // --- HANDLERS (EXPOSED GLOBALLY) ---
+        
+        let resizeTimer;
+        function debouncedRenderSheetMusic() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(renderSheetMusic, 150);
+        }
+        
+        // Expose functions globally for HTML event handlers (onclick, onchange)
+        window.handleKeyChange = (keyIndex) => {
+            state.currentKeyIndex = parseInt(keyIndex);
+            state.currentDegree = 1; 
+            state.currentInversion = 0; 
+            updateUI();
+        }
+
+        window.handleModeChange = (modeId) => {
+            state.currentModeId = modeId;
+            state.currentDegree = 1; 
+            state.currentInversion = 0; 
+            updateUI();
+        }
+        
+        window.handleDegreeChange = (degree) => {
+            const mode = getCurrentMode();
+            
+            const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord' && degree <= 7;
+
+            if (degree === state.currentDegree) {
+                if (canInvert) {
+                    state.currentInversion = (state.currentInversion + 1) % 3; 
+                } else {
+                    state.currentInversion = 0;
+                }
+            } else {
+                state.currentDegree = degree;
+                state.currentInversion = 0; 
+            }
+            updateUI();
+        }
+
+        window.handleVisualizationModeChange = (mode) => {
+            state.visualizationMode = mode;
+            state.currentInversion = 0; 
+            updateUI();
+        }
+
+        // --- UI Update Logic ---
+        
+        function getSimplifiedKeyName() {
+            const rootName = KEYS[state.currentKeyIndex];
+            const modeName = getCurrentMode().name;
+            return `Key of ${rootName} - ${modeName}`;
+        }
+
+        function getDetailedHighlightName() {
+            const mode = getCurrentMode();
+            const intervals = mode.intervals;
+            const degree = state.currentDegree;
+
+            const scaleDegreeIndex = (degree === 8) ? 0 : degree - 1;
+            const degreeInterval = intervals[scaleDegreeIndex]; 
+            
+            const highlightRootIndex = (state.currentKeyIndex + degreeInterval) % 12;
+            const highlightRootName = KEYS[highlightRootIndex]; 
+            
+            const degreeIndex = (degree === 8) ? 0 : degree - 1;
+
+            if (state.visualizationMode === 'chord' && mode.isDiatonic && mode.intervals.length === 7) {
+                const romanNumeral = mode.qualities[degreeIndex];
+                const quality = mode.triadQualities[degreeIndex];
+                
+                let inversionText = 'Root Position';
+                if (state.currentInversion === 1) {
+                    inversionText = '1st Inversion / 6';
+                } else if (state.currentInversion === 2) {
+                    inversionText = '2nd Inversion / 6/4';
+                }
+
+                return `Selected: ${highlightRootName}${quality} (${romanNumeral}) (${inversionText})`;
+            } else {
+                let degreeText;
+                if (degree === 1) {
+                    degreeText = '1st';
+                } else if (degree === 2) {
+                    degreeText = '2nd';
+                } else if (degree === 3) {
+                    degreeText = '3rd';
+                } else if (degree === 8) {
+                    degreeText = 'Octave (8th)';
+                } else {
+                    degreeText = `${degree}th`;
+                }
+                
+                return `Selected: ${highlightRootName} (${degreeText})`;
+            }
+        }
+        
+        function updateUI() {
+            renderModeSelect(); 
+
+            const mode = getCurrentMode();
+            
+            if (state.currentDegree > mode.degrees) {
+                state.currentDegree = 1;
+            }
+            
+            const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord' && state.currentDegree !== 8;
+            
+            if (!canInvert) {
+                state.currentInversion = 0;
+                document.getElementById('inversion-tip').classList.add('hidden');
+            } else {
+                 document.getElementById('inversion-tip').classList.remove('hidden');
+            }
+
+            renderKeySelect();
+            renderChordButtons();
+            renderConsolidatedDisplay(); 
+            renderVisualizationModeButtons(); 
+            
+            renderSheetMusic(); 
+        }
+
+        function renderKeySelect() {
+            const select = document.getElementById('key-select');
+            select.innerHTML = KEYS.map((key, index) => 
+                `<option value="${index}" ${index === state.currentKeyIndex ? 'selected' : ''}>${key}</option>`
+            ).join('');
+        }
+        
+        function renderModeSelect() {
+            const select = document.getElementById('mode-select');
+            const allModes = Object.entries(SCALE_MODES);
+            
+            let modesToRender = allModes;
+            let currentModeExists = true;
+            
+            // If in Chord View, only show Diatonic scales (Major, Minor, Harmonic Minor)
+            if (state.visualizationMode === 'chord') {
+                modesToRender = allModes.filter(([id, mode]) => 
+                    mode.isDiatonic && mode.intervals.length === 7
+                );
+                
+                currentModeExists = modesToRender.some(([id]) => id === state.currentModeId);
+                if (!currentModeExists) {
+                     state.currentModeId = 'major';
+                     state.currentDegree = 1; 
+                }
+            }
+            
+            select.innerHTML = modesToRender.map(([id, mode]) => 
+                `<option value="${id}" ${id === state.currentModeId ? 'selected' : ''}>${mode.name}</option>`
+            ).join('');
+        }
+        
+        function renderVisualizationModeButtons() {
+            const isChord = state.visualizationMode === 'chord';
+            const chordBtn = document.getElementById('mode-chord-btn');
+            const scaleBtn = document.getElementById('mode-scale-btn');
+            const mode = getCurrentMode();
+            
+            const isChordModeSupported = mode.isDiatonic && mode.intervals.length === 7;
+
+            const activeClasses = ['bg-blue-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-300', 'border-blue-600'];
+            const inactiveClasses = ['bg-white', 'text-gray-700', 'hover:bg-gray-200', 'border-gray-300', 'shadow-sm'];
+
+            const updateButton = (btn, isActive, isDisabled) => {
+                if (!btn) return;
+                
+                activeClasses.forEach(cls => btn.classList.toggle(cls, isActive && !isDisabled));
+                inactiveClasses.forEach(cls => btn.classList.toggle(cls, !isActive && !isDisabled));
+                
+                btn.disabled = isDisabled;
+                btn.classList.toggle('disabled-mode', isDisabled);
+            };
+            
+            updateButton(chordBtn, isChord, !isChordModeSupported);
+            updateButton(scaleBtn, !isChord, false);
+
+            if (isChord && !isChordModeSupported) {
+                // Auto-switch to scale view if the current scale doesn't support chord visualization
+                state.visualizationMode = 'scale';
+                setTimeout(updateUI, 0); 
+            }
+        }
+
+        function renderChordButtons() {
+            const container = document.getElementById('chord-buttons-container');
+            const mode = getCurrentMode();
+            const qualities = mode.qualities;
+            const triadQualities = mode.triadQualities;
+            
+            const numDegrees = mode.degrees; 
+            const isScaleView = state.visualizationMode === 'scale';
+            
+            const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord';
+
+            // Adjust grid layout based on number of degrees (e.g., 5 for pentatonic, 8 for diatonic)
+            container.classList.remove('sm:grid-cols-5', 'sm:grid-cols-7', 'sm:grid-cols-8');
+            container.classList.add(numDegrees === 8 ? 'sm:grid-cols-8' : 'sm:grid-cols-5');
+
+
+            container.innerHTML = mode.qualities.slice(0, numDegrees).map((romanNumeral, index) => {
+                const degree = index + 1;
+                const isActive = degree === state.currentDegree;
+                
+                const qualityIndex = index; 
+                const isInvrted = isActive && state.currentInversion > 0; 
+
+                let inversionSuffix = '';
+                let qualityDisplay = '';
+                let mainButtonText = '';
+                let secondaryButtonText = '';
+                
+                if (isScaleView) {
+                    mainButtonText = romanNumeral; 
+                } else {
+                    mainButtonText = romanNumeral;
+                    qualityDisplay = canInvert ? triadQualities[qualityIndex] : '';
+                    
+                    if (isActive && degree <= 7 && canInvert && state.currentInversion > 0) {
+                         inversionSuffix = state.currentInversion === 1 ? ' / 6' : ' / 6/4';
+                    }
+                    secondaryButtonText = `${qualityDisplay}${inversionSuffix}`;
+                }
+                
+                let buttonClasses = 'bg-gray-100 text-gray-700 hover:bg-gray-300 shadow-sm border border-gray-300';
+
+                // Apply active state styling
+                if (isActive && !isInvrted) {
+                    buttonClasses = 'bg-blue-700 text-white ring-4 ring-blue-300 transform scale-105 shadow-xl border-blue-700';
+                } else if (isInvrted) {
+                    buttonClasses = 'bg-indigo-600 text-white ring-4 ring-yellow-400 transform scale-105 shadow-2xl border-white';
+                }
+
+
+                return `
+                    <button onclick="handleDegreeChange(${degree})"
+                            class="py-3 px-2 rounded-lg font-extrabold transition duration-200 
+                            flex flex-col items-center justify-center min-h-20
+                            ${buttonClasses}"> 
+                        <span class="text-xl">${mainButtonText}</span>
+                        <span class="text-xs font-medium opacity-80">${secondaryButtonText}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderConsolidatedDisplay() {
+            const display = document.getElementById('consolidated-display');
+            const detailedText = getDetailedHighlightName();
+            const keyModeText = getSimplifiedKeyName();
+
+            display.innerHTML = `
+                <p class="text-lg font-bold">${detailedText}</p>
+                <p class="text-sm font-medium opacity-90 mt-1">${keyModeText}</p>
+            `;
+        }
+        
+        // --- PWA Registration ---
+        function registerPwa() {
+            const manifestContent = {
+                "name": "TheoryViz - Sheet Music",
+                "short_name": "TVSM",
+                "start_url": ".",
+                "display": "standalone",
+                "background_color": "#ffffff",
+                "theme_color": "#3b82f6",
+                "icons": [
+                    {"src": "https://placehold.co/192x192/3b82f6/ffffff?text=SM", "sizes": "192x192", "type": "image/png"},
+                    {"src": "https://placehold.co/512x512/3b82f6/ffffff?text=SM", "sizes": "512x512", "type": "image/png"}
+                ]
+            };
+
+            const manifestBlob = new Blob([JSON.stringify(manifestContent)], {type : 'application/json'});
+            const manifestUrl = URL.createObjectURL(manifestBlob);
+            
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = manifestUrl;
+            document.head.appendChild(link);
+        }
+        
+        // --- APPLICATION STARTUP ---
+
+        function initApp() {
+             const container = document.getElementById('sheet-music-view');
+             // Clear the "Initializing..." message immediately
+             container.innerHTML = ''; 
+
+             // Critical check: VexFlow should be available globally as VF
+             if (typeof VF === 'undefined' || typeof VF.Renderer === 'undefined') {
+                 console.error("VexFlow global object (VF) is not defined. Application cannot initialize.");
+                 container.innerHTML = `<p class="text-red-500 text-center text-sm absolute inset-0 flex items-center justify-center">Error: Music library failed to load. Please try reloading the document in a standard browser environment.</p>`;
+                 return;
+             }
+             
+             // Delay the initial render with a longer timeout (300ms) 
+             // to ensure the DOM has fully settled and element dimensions are stable.
+             setTimeout(() => {
+                 updateUI();
+             }, 300); 
+             
+             window.addEventListener('resize', debouncedRenderSheetMusic); 
+             registerPwa();
+        }
+
+        // Start the main application once the document is fully loaded
+        window.addEventListener('DOMContentLoaded', initApp);
+        
+    </script>
+</body>
+</html>
