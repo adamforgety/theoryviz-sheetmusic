@@ -11,7 +11,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- CRITICAL FIX: Loading VexFlow as a global script (CJS Bundle) -->
-    <!-- Attempting a different CDN (unpkg) to bypass environment's strict Content Security Policy (CSP) blocking the previous link. -->
+    <!-- Using the unpkg link again, but adding robust retry logic in JS to wait for the library. -->
     <script src="https://unpkg.com/vexflow@4.2.1/build/cjs/vexflow-min.js"></script>
 
     <style>
@@ -270,8 +270,8 @@
             
             // CRITICAL CHECK for global VexFlow (VF) object
             if (typeof VF === 'undefined' || typeof VF.Renderer === 'undefined') {
-                 console.error("VexFlow global object (VF) is not defined. Application cannot initialize.");
-                 container.innerHTML = `<p class="text-red-500 text-center text-sm absolute inset-0 flex items-center justify-center">Error: Music library failed to load (VF not found). Please try reloading the document in a standard browser environment.</p>`;
+                 // The retry logic in initApp handles the error display on failure.
+                 console.error("VexFlow is not defined in renderSheetMusic. Initialization failed.");
                  return;
             }
             
@@ -389,7 +389,10 @@
         let resizeTimer;
         function debouncedRenderSheetMusic() {
             clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(renderSheetMusic, 150);
+            // Only attempt to render if VexFlow is successfully loaded
+            if (typeof VF !== 'undefined' && typeof VF.Renderer !== 'undefined') {
+                resizeTimer = setTimeout(renderSheetMusic, 150);
+            }
         }
         
         // Expose functions globally for HTML event handlers (onclick, onchange)
@@ -668,28 +671,41 @@
             document.head.appendChild(link);
         }
         
-        // --- APPLICATION STARTUP ---
+        // --- APPLICATION STARTUP (WITH RETRY LOGIC) ---
 
         function initApp() {
              const container = document.getElementById('sheet-music-view');
-             // Clear the "Initializing..." message immediately
              container.innerHTML = ''; 
 
-             // Critical check: VexFlow should be available globally as VF
-             if (typeof VF === 'undefined' || typeof VF.Renderer === 'undefined') {
-                 console.error("VexFlow global object (VF) is not defined. Application cannot initialize.");
-                 container.innerHTML = `<p class="text-red-500 text-center text-sm absolute inset-0 flex items-center justify-center">Error: Music library failed to load. Please try reloading the document in a standard browser environment.</p>`;
-                 return;
+             const maxRetries = 10;
+             let retryCount = 0;
+             const checkInterval = 200; // Check every 200ms
+
+             function attemptInit() {
+                 // Check if the global VexFlow object is available
+                 if (typeof VF !== 'undefined' && typeof VF.Renderer !== 'undefined') {
+                     console.log("VexFlow loaded successfully. Initializing application.");
+                     
+                     // Success! Delay initial render slightly for stable dimensions
+                     setTimeout(() => {
+                         updateUI();
+                     }, 300); 
+                     
+                     window.addEventListener('resize', debouncedRenderSheetMusic); 
+                     registerPwa();
+                 } else if (retryCount < maxRetries) {
+                     retryCount++;
+                     // Use console.warn for retries to avoid unnecessary errors
+                     console.warn(`VexFlow not found yet. Retrying... (${retryCount}/${maxRetries})`);
+                     setTimeout(attemptInit, checkInterval);
+                 } else {
+                     // Failure after all retries
+                     console.error("VexFlow global object (VF) is not defined after multiple retries. Application cannot initialize.");
+                     container.innerHTML = `<p class="text-red-500 text-center text-sm absolute inset-0 flex items-center justify-center">Critical Error: Music library failed to load after repeated attempts. This may be due to environment restrictions.</p>`;
+                 }
              }
              
-             // Delay the initial render with a longer timeout (300ms) 
-             // to ensure the DOM has fully settled and element dimensions are stable.
-             setTimeout(() => {
-                 updateUI();
-             }, 300); 
-             
-             window.addEventListener('resize', debouncedRenderSheetMusic); 
-             registerPwa();
+             attemptInit();
         }
 
         // Start the main application once the document is fully loaded
