@@ -48,12 +48,13 @@
         }
         
         /* Style the VexFlow container to ensure it looks good */
-        #staff-display {
-            min-height: 150px; /* Ensure visibility before drawing */
+        /* Set a height for each staff container */
+        #staff-display-treble, #staff-display-bass {
+            min-height: 140px; 
         }
         
         /* Ensures the canvas/svg element from VexFlow doesn't look bad */
-        #staff-display > svg {
+        #staff-display-treble > svg, #staff-display-bass > svg {
             display: block;
             margin: 0 auto;
         }
@@ -105,9 +106,13 @@
                 </div>
             
             <div id="sheet-music-container" class="p-4 bg-gray-100 border border-gray-300 rounded-xl shadow-inner">
-                <h2 class="text-xl font-bold text-gray-800 mb-3 border-b pb-2">Musical Staff</h2>
-                <div id="staff-display" class="w-full overflow-x-scroll">
-                    </div>
+                <h2 class="text-xl font-bold text-gray-800 mb-3 border-b pb-2">Musical Staff (Grand Staff)</h2>
+                
+                <div id="staff-display-treble" class="w-full overflow-x-scroll mb-4 border-b border-gray-300 pb-2">
+                </div>
+                
+                <div id="staff-display-bass" class="w-full overflow-x-scroll">
+                </div>
             </div>
 
         </div>
@@ -500,77 +505,95 @@
         }
         
         /**
-         * Renders the sheet music staff with the highlighted notes.
+         * Renders the sheet music staff with the highlighted notes for both Treble and Bass clefs.
          */
         function drawSheetMusic() {
-            const container = document.getElementById('staff-display');
-            container.innerHTML = ''; // Clear previous SVG/Canvas
+            // Get both containers
+            const containerTreble = document.getElementById('staff-display-treble');
+            const containerBass = document.getElementById('staff-display-bass');
+            
+            // Clear previous content
+            containerTreble.innerHTML = ''; 
+            containerBass.innerHTML = ''; 
 
             if (state.highlightedMidiNotes.length === 0) {
-                 container.innerHTML = '<p class="text-center text-gray-500 py-4">Select a key and scale degree to view the notes on the staff.</p>';
+                 containerTreble.innerHTML = '<p class="text-center text-gray-500 py-4">Select a key and scale degree to view the notes on the staff.</p>';
                  return;
             }
             
-            // --- VexFlow Setup ---
-            const width = container.offsetWidth > 450 ? 450 : container.offsetWidth;
-            const height = 140;
-            
-            const renderer = new Renderer(container, Renderer.Backends.SVG);
-            renderer.resize(width, height);
-            const context = renderer.getContext();
-            context.clear(); 
-            
-            // --- Stave (Staff) Setup ---
-            const stave = new Stave(10, 10, width - 20); // x, y, width
-            
-            stave.addClef('treble');
-            
-            const keySig = getVexFlowKeySignature();
-            stave.addKeySignature(keySig);
-            
-            stave.setContext(context).draw();
-
-            // --- Note Setup ---
+            // --- Common Setup ---
+            const width = containerTreble.offsetWidth > 450 ? 450 : containerTreble.offsetWidth;
+            const height = 140; 
             
             // 1. Get the VexFlow note strings (e.g., ['c/4', 'e/4', 'g/4'])
             const vexFlowNotes = state.highlightedMidiNotes.map(getVexFlowNoteString);
+            const keySig = getVexFlowKeySignature();
             
-            // 2. Create the StaveNote
-            const note = new StaveNote({
-                keys: vexFlowNotes,
-                duration: 'q', 
-            });
+            // Determine if we need to manually add accidentals (for non-diatonic scales or C key signature)
+            const isNonDiatonicOrCKey = !getCurrentMode().isDiatonic || getCurrentMode().intervals.length !== 7 || state.currentModeId === 'harmonic_minor' || keySig === 'C';
             
-            // 3. Add accidentals for notes not in the key signature (or for non-diatonic scales like Harmonic Minor).
-            const mode = getCurrentMode();
-            if (!mode.isDiatonic || mode.intervals.length !== 7 || state.currentModeId === 'harmonic_minor' || keySig === 'C') {
-                 
-                 vexFlowNotes.forEach((vfNote, index) => {
-                    const noteParts = vfNote.split('/'); // ['c#', '4'] or ['db', '4']
-                    const noteName = noteParts[0];
-                    let accidentalType = '';
-                    
-                    if (noteName.length > 1) {
-                        accidentalType = noteName.slice(1); // # or b
+            // --- Helper function to draw a single staff ---
+            const drawStaff = (container, clef) => {
+                const renderer = new Renderer(container, Renderer.Backends.SVG);
+                renderer.resize(width, height);
+                const context = renderer.getContext();
+                context.clear(); 
+                
+                // --- Stave (Staff) Setup ---
+                const stave = new Stave(10, 10, width - 20); // x, y, width
+                
+                // Add clef
+                stave.addClef(clef);
+                
+                // Add key signature
+                stave.addKeySignature(keySig);
+                
+                stave.setContext(context).draw();
+
+                // --- Note Setup ---
+                const note = new StaveNote({
+                    keys: vexFlowNotes,
+                    duration: 'q', 
+                    // Set the clef context for correct note head placement
+                    clef: clef 
+                });
+                
+                // Add accidentals if necessary
+                if (isNonDiatonicOrCKey) {
+                    vexFlowNotes.forEach((vfNote, index) => {
+                        const noteParts = vfNote.split('/'); 
+                        const noteName = noteParts[0];
+                        let accidentalType = '';
                         
-                        if (accidentalType === '#') {
-                            note.addModifier(new Accidental("#"), index);
-                        } else if (accidentalType === 'b') {
-                            note.addModifier(new Accidental("b"), index);
+                        if (noteName.length > 1) {
+                            accidentalType = noteName.slice(1); 
+                            
+                            // Only add accidentals if the note is sharp or flat
+                            if (accidentalType === '#') {
+                                note.addModifier(new Accidental("#"), index);
+                            } else if (accidentalType === 'b') {
+                                note.addModifier(new Accidental("b"), index);
+                            }
                         }
-                    }
-                 });
-            }
+                    });
+                }
+                
+                // --- Voice and Drawing ---
+                const voice = new Voice({ num_beats: 1, beat_value: 4 }); 
+                voice.addTickables([note]);
+                
+                // Format and justify the notes to fit the stave width
+                new Formatter().joinVoices([voice]).format([voice], width - 40); 
+                
+                // Render the notes
+                voice.draw(context, stave);
+            };
+
+            // 1. Draw Treble Staff
+            drawStaff(containerTreble, 'treble');
             
-            
-            // --- Voice and Drawing ---
-            
-            const voice = new Voice({ num_beats: 1, beat_value: 4 }); 
-            voice.addTickables([note]);
-            
-            new Formatter().joinVoices([voice]).format([voice], width - 40); 
-            
-            voice.draw(context, stave);
+            // 2. Draw Bass Staff
+            drawStaff(containerBass, 'bass');
         }
 
         // --- KEYBOARD RENDERING HELPERS ---
