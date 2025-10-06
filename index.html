@@ -52,10 +52,17 @@
             min-height: 150px; /* Ensure visibility before drawing */
         }
         
-        /* Ensures the canvas/svg element from VexFlow doesn't look bad */
+        /* FIX: Remove margin: 0 auto; from the SVG to allow translateX to work. 
+           We now use Flexbox on the parent to center it.
+        */
+        #sheet-music-container #staff-display {
+            display: flex; /* Use flexbox to center content */
+            justify-content: center; /* Center horizontally */
+        }
+        
         #staff-display > svg {
             display: block;
-            margin: 0 auto;
+            /* margin: 0 auto; removed */ 
             /* Added for smooth visual feedback when the keyboard scrolls */
             transition: transform 0.1s linear; 
         }
