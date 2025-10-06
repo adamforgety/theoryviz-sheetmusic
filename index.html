@@ -133,34 +133,33 @@
 
         // --- CONSTANTS AND MAPPING ---
         
-        // NEW: Expanded list of key names for the dropdown (includes all sharps and flats)
+        // Expanded list of key names for the dropdown
         const KEY_DISPLAY_NAMES = [
             "C", "C#", "Db", "D", "D#", "Eb", "E", 
             "F", "F#", "Gb", "G", "G#", "Ab", "A", 
             "A#", "Bb", "B"
         ];
         
-        // NEW: Map to link display name back to the 0-11 pitch class (C=0, C#=1, Db=1, etc.)
+        // Map to link display name back to the 0-11 pitch class (C=0, C#=1, Db=1, etc.)
         const KEY_TO_PITCH_CLASS = {
             "C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, 
             "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, 
             "A#": 10, "Bb": 10, "B": 11
         };
-        // The original KEYS array is still used internally for converting MIDI to note name/accidental
+        // Sharp-based names (C, C#, D, D#, ...) - Used for default internal logic and non-flat keys
         const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
         
-        // Enharmonic map for black keys (pitch classes 1, 3, 6, 8, 10)
-        const ENHARMONIC_PITCH_CLASSES = {
-            1: { sharp: 'C#', flat: 'Db' },
-            3: { sharp: 'D#', flat: 'Eb' },
-            6: { sharp: 'F#', flat: 'Gb' },
-            8: { sharp: 'G#', flat: 'Ab' },
-            10: { sharp: 'A#', flat: 'Bb' }
-        };
+        // Flat-based names (C, Db, D, Eb, ...) - Used for VexFlow note string generation in flat keys
+        const FLAT_KEYS = ["c", "db", "d", "eb", "e", "f", "gb", "g", "ab", "a", "bb", "b"];
+        // Sharp-based names (c, c#, d, d#, ...) - Used for VexFlow note string generation in sharp keys
+        const SHARP_KEYS = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];
+        
+        // Flat root keys that mandate flat spelling for the staff
+        const FLAT_ROOT_KEYS = ['Db', 'Eb', 'Gb', 'Ab', 'Bb']; 
 
         const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11]; 
         
-        // VexFlow Key Signature Map (standard major/minor key names indexed by 0-11 pitch class)
+        // VexFlow Key Signature Map 
         const KEY_SIGNATURE_MAP = [
             'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'
         ];
@@ -251,14 +250,14 @@
 
         // --- STATE ---
         let state = {
-            currentKeyName: 'C', // NEW: Store the selected key name (e.g., 'Db')
+            currentKeyName: 'C', // Store the selected key name (e.g., 'Db')
             currentKeyIndex: 0, // C is default (pitch class 0)
             currentModeId: 'major', 
             currentDegree: 1, 
             currentInversion: 0, 
             highlightedPitchClasses: [], 
             highlightedMidiNotes: [], 
-            isCenteringEnabled: true, // ALWAYS true now
+            isCenteringEnabled: true, 
             visualizationMode: 'scale' 
         };
 
@@ -272,7 +271,6 @@
          * Gets the simplified name of the current key and mode (e.g., "Key of C - Ionian (Major)").
          */
         function getSimplifiedKeyName() {
-            // Use the selected key name from state
             const rootName = state.currentKeyName;
             const modeName = getCurrentMode().name;
             return `Key of ${rootName} - ${modeName}`;
@@ -436,14 +434,26 @@
 
         /**
          * Converts MIDI note number (e.g., 60) to VexFlow string format (e.g., 'c/4').
+         * Correctly handles enharmonic spelling based on the selected root key (state.currentKeyName).
          */
         function getVexFlowNoteString(midi) {
-            // Note names (c, c#, d, d#, e, f, f#, g, g#, a, a#, b)
-            const noteNames = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];
-            const noteIndex = midi % 12;
-            const octave = Math.floor(midi / 12) - 1; // MIDI 60 is C4, so Octave 4
+            const pitchClass = midi % 12;
+            const octave = Math.floor(midi / 12) - 1; 
+            const currentKeyName = state.currentKeyName;
             
-            return `${noteNames[noteIndex]}/${octave}`;
+            let noteName;
+
+            // Check if the current key is one of the explicit flat keys
+            if (FLAT_ROOT_KEYS.includes(currentKeyName)) {
+                // If the root key is flat, use the flat names for all notes.
+                // This forces notes like Db to be spelled 'db' and placed on the D line.
+                noteName = FLAT_KEYS[pitchClass];
+            } else {
+                // For all other keys (C, C#, D, D#, E, F, F#, G, G#, A, A#, B), use sharp/natural names.
+                noteName = SHARP_KEYS[pitchClass];
+            }
+            
+            return `${noteName}/${octave}`;
         }
         
         /**
@@ -462,7 +472,7 @@
                     // Find the pitch class index of the relative major key (3 semitones up)
                     const relativeMajorIndex = (keyIndex + 3) % 12;
                     
-                    // If the relative major is one of the standard flat keys (Eb, Ab, Bb), use that name for the signature.
+                    // If the relative major is one of the flat keys, use that name for the signature.
                     const flatKeysInMap = ['Eb', 'Ab', 'Bb']; 
                     if (flatKeysInMap.includes(KEY_SIGNATURE_MAP[relativeMajorIndex])) {
                         return KEY_SIGNATURE_MAP[relativeMajorIndex];
@@ -474,9 +484,8 @@
                 } else { 
                     // Major Key
                     
-                    // NEW LOGIC: Override the standard map lookup if the user explicitly chose a flat key.
-                    const flatKeysExplicit = ['Db', 'Eb', 'Gb', 'Ab', 'Bb'];
-                    if (flatKeysExplicit.includes(currentKeyName)) {
+                    // Override the standard map lookup if the user explicitly chose a flat key.
+                    if (FLAT_ROOT_KEYS.includes(currentKeyName)) {
                         return currentKeyName;
                     }
                 }
@@ -503,7 +512,6 @@
             }
             
             // --- VexFlow Setup ---
-            // Set max width to 450px to ensure it looks good even when in a 50% column on large screens
             const width = container.offsetWidth > 450 ? 450 : container.offsetWidth;
             const height = 140;
             
@@ -515,10 +523,8 @@
             // --- Stave (Staff) Setup ---
             const stave = new Stave(10, 10, width - 20); // x, y, width
             
-            // Add treble clef
             stave.addClef('treble');
             
-            // Determine and add key signature
             const keySig = getVexFlowKeySignature();
             stave.addKeySignature(keySig);
             
@@ -530,19 +536,17 @@
             const vexFlowNotes = state.highlightedMidiNotes.map(getVexFlowNoteString);
             
             // 2. Create the StaveNote
-            // Use 1/4 duration for display
             const note = new StaveNote({
                 keys: vexFlowNotes,
                 duration: 'q', 
             });
             
-            // 3. Add accidentals for notes not in the key signature.
+            // 3. Add accidentals for notes not in the key signature (or for non-diatonic scales like Harmonic Minor).
             const mode = getCurrentMode();
-            if (!mode.isDiatonic || mode.intervals.length !== 7 || state.currentModeId === 'harmonic_minor') {
-                 // For non-diatonic or harmonic minor, assume no key signature and add accidentals if sharp/flat is implied
+            if (!mode.isDiatonic || mode.intervals.length !== 7 || state.currentModeId === 'harmonic_minor' || keySig === 'C') {
                  
                  vexFlowNotes.forEach((vfNote, index) => {
-                    const noteParts = vfNote.split('/'); // ['c#', '4']
+                    const noteParts = vfNote.split('/'); // ['c#', '4'] or ['db', '4']
                     const noteName = noteParts[0];
                     let accidentalType = '';
                     
@@ -550,10 +554,8 @@
                         accidentalType = noteName.slice(1); // # or b
                         
                         if (accidentalType === '#') {
-                            // Add sharp modifier
                             note.addModifier(new Accidental("#"), index);
                         } else if (accidentalType === 'b') {
-                            // Add flat modifier
                             note.addModifier(new Accidental("b"), index);
                         }
                     }
@@ -563,13 +565,11 @@
             
             // --- Voice and Drawing ---
             
-            const voice = new Voice({ num_beats: 1, beat_value: 4 }); // Treat as a single whole beat
+            const voice = new Voice({ num_beats: 1, beat_value: 4 }); 
             voice.addTickables([note]);
             
-            // Format and justify the notes to fit the stave width
             new Formatter().joinVoices([voice]).format([voice], width - 40); 
             
-            // Render the notes
             voice.draw(context, stave);
         }
 
@@ -578,25 +578,28 @@
         /**
          * Returns the correctly spelled note name (sharp or flat) for a MIDI note/pitch class,
          * based on the root key currently selected.
-         * @param {number} pitchClass 0-11 pitch class of the note being labeled.
-         * @param {string} currentKeyName The name of the root key (e.g., 'Db', 'C#').
-         * @returns {string} The correctly spelled note name (e.g., 'Db').
          */
         function getKeyboardNoteName(pitchClass, currentKeyName) {
             // White keys (C, D, E, F, G, A, B) are always spelled the same.
-            const enharmonicPair = ENHARMONIC_PITCH_CLASSES[pitchClass];
+            const enharmonicPair = {
+                 1: { sharp: 'C#', flat: 'Db' },
+                 3: { sharp: 'D#', flat: 'Eb' },
+                 6: { sharp: 'F#', flat: 'Gb' },
+                 8: { sharp: 'G#', flat: 'Ab' },
+                 10: { sharp: 'A#', flat: 'Bb' }
+            }[pitchClass];
+
             if (!enharmonicPair) {
                 return KEYS[pitchClass]; 
             }
 
             // Decide whether to use flat spelling
-            const flatRootKeys = ['Db', 'Eb', 'Gb', 'Ab', 'Bb'];
-            const shouldUseFlatSpelling = flatRootKeys.includes(currentKeyName);
+            const shouldUseFlatSpelling = FLAT_ROOT_KEYS.includes(currentKeyName);
 
             if (shouldUseFlatSpelling) {
                 return enharmonicPair.flat;
             } else {
-                // Use sharp spelling for all other keys (C, C#, D, D#, E, F, F#, G, G#, A, A#, B)
+                // Use sharp spelling for all other keys 
                 return enharmonicPair.sharp;
             }
         }
@@ -787,7 +790,7 @@
                     const octave = Math.floor(key.midi / 12) - 1;
 
                     if (isHighlighted) {
-                         // Use the new function to determine the spelling 
+                         // Use the function to determine the spelling 
                          labelText = getKeyboardNoteName(key.pitchClass, state.currentKeyName); 
                     } else if (key.name === 'C' || key.name === 'F' || key.name === 'B') {
                         // Label C, F, B keys (for easier reference)
@@ -839,7 +842,7 @@
                         text.setAttribute('font-weight', '600');
                         text.setAttribute('fill', KEY_COLORS.WHITE);
                         
-                        // NEW LOGIC: Use current key to determine flat/sharp spelling
+                        // Use current key to determine flat/sharp spelling
                         const noteLabel = getKeyboardNoteName(key.pitchClass, state.currentKeyName);
                         text.textContent = noteLabel;
                         
@@ -888,10 +891,8 @@
         
         function renderKeySelect() {
             const select = document.getElementById('key-select');
-            // NEW: Use KEY_DISPLAY_NAMES for the dropdown
             select.innerHTML = KEY_DISPLAY_NAMES.map((keyName) => {
                 const isSelected = keyName === state.currentKeyName;
-                // The value passed to handleKeyChange will be the string name (e.g., 'Db')
                 return `<option value="${keyName}" ${isSelected ? 'selected' : ''}>${keyName}</option>`;
             }).join('');
         }
@@ -1080,7 +1081,6 @@
         }
 
         function handleKeyChange(keyName) {
-            // NEW: Store the key name and derive the pitch class index (0-11)
             state.currentKeyName = keyName;
             state.currentKeyIndex = KEY_TO_PITCH_CLASS[keyName];
 
