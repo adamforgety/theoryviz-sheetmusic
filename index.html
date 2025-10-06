@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TheoryViz</title>
-    <meta name="theme-color" content="#3b82f6">
+    [span_0](start_span)<meta name="theme-color" content="#3b82f6">[span_0](end_span)
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.0.3/build/cjs/vexflow.js"></script>
@@ -13,51 +13,72 @@
         /* Custom styles for the SVG keyboard container */
         .keyboard-container {
             position: relative;
-            /* Height remains 250px to accommodate the step visualizer track */
-            height: 250px; 
-            border-radius: 0.5rem;
+            height: 250px; [span_1](start_span)/* Height remains 250px to accommodate the step visualizer track */[span_1](end_span)
+            [span_2](start_span)border-radius: 0.5rem;[span_2](end_span)
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            /* Light gray for contrast against the white keys */
-            background-color: #f3f4f6;
-            overflow-x: scroll; /* KEEP scroll to allow the fixed width content to be scrolled */
-            overscroll-behavior: contain; /* Prevents unwanted browser scroll on mobile drag */
+            background-color: #f3f4f6; [span_3](start_span)/* Light gray for contrast against the white keys */[span_3](end_span)
+            overflow-x: scroll; [span_4](start_span)/* KEEP scroll to allow the fixed width content to be scrolled */[span_4](end_span)
+            overscroll-behavior: contain;
+            [span_5](start_span)/* Prevents unwanted browser scroll on mobile drag */[span_5](end_span)
         }
 
         /* Hide scrollbar for a cleaner look, while still allowing scroll */
         .keyboard-container::-webkit-scrollbar {
-            display: none;
+            [span_6](start_span)display: none;[span_6](end_span)
         }
         .keyboard-container {
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
+            -ms-overflow-style: none; [span_7](start_span)/* IE and Edge */[span_7](end_span)
+            scrollbar-width: none; [span_8](start_span)/* Firefox */[span_8](end_span)
         }
 
         /* Highlighting Styles for a consistent look with the buttons */
         .highlight-transition {
-            transition: fill 0.2s ease;
+            [span_9](start_span)transition: fill 0.2s ease;[span_9](end_span)
         }
         
         /* Custom style for visualization buttons (Removed .active style to use pure Tailwind in JS) */
         .viz-btn {
-            border-radius: 0.5rem;
+            [span_10](start_span)border-radius: 0.5rem;[span_10](end_span)
             transition: all 0.2s;
             font-weight: 600; /* font-semibold */
-            padding-top: 0.625rem; /* py-2.5 */
-            padding-bottom: 0.625rem; /* py-2.5 */
-            border-width: 1px; /* Ensure border is present for both states */
+            padding-top: 0.625rem; [span_11](start_span)/* py-2.5 */[span_11](end_span)
+            padding-bottom: 0.625rem; [span_12](start_span)/* py-2.5 */[span_12](end_span)
+            border-width: 1px; [span_13](start_span)/* Ensure border is present for both states */[span_13](end_span)
         }
         
         /* Style the VexFlow container to ensure it looks good */
         #staff-display {
-            min-height: 150px; /* Ensure visibility before drawing */
+            min-height: 150px; [span_14](start_span)/* Ensure visibility before drawing */[span_14](end_span)
         }
         
         /* Ensures the canvas/svg element from VexFlow doesn't look bad */
         #staff-display > svg {
-            display: block;
+            [span_15](start_span)display: block;[span_15](end_span)
             margin: 0 auto;
         }
 
+        /* Custom form-checkbox style if using default HTML forms (for Tailwind consistency) */
+        .form-checkbox {
+            appearance: none;
+            display: inline-block;
+            height: 1.25rem;
+            width: 1.25rem;
+            border-radius: 0.25rem;
+            border: 1px solid #d1d5db;
+            background-color: #fff;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+        }
+        .form-checkbox:checked {
+            background-color: #2563eb;
+            border-color: #2563eb;
+        }
+        .form-checkbox:checked::after {
+            content: url('data:image/svg+xml;charset=UTF-8,<svg viewBox="0 0 16 16" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M5.707 7.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l6-6a1 1 0 00-1.414-1.414L8 9.586l-2.293-2.293z"/></svg>');
+            display: block;
+            text-align: center;
+            line-height: 1;
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-sans p-4 md:p-8">
@@ -67,59 +88,91 @@
             TheoryViz
         </h1>
         <p class="text-center text-gray-600 mb-6">
-            Visualize harmony anywhere!
+            [span_16](start_span)Visualize harmony anywhere[span_16](end_span)!
         </p>
 
+        <div class="p-4 bg-gray-100 rounded-xl mb-6 shadow-inner border border-gray-200">
+            <label class="block text-sm font-bold text-gray-700 mb-3 border-b pb-2">Display Options</label>
+            <div class="flex flex-wrap gap-4 text-sm">
+                
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" checked id="toggle-staff" onchange="toggleDisplay('sheet-music-container', this.checked)"
+                           class="form-checkbox text-blue-600 rounded-sm">
+                    <span>Show Musical Staff</span>
+                </label>
+                
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" checked id="toggle-steps" onchange="toggleDisplay('step-visualizer-track-parent', this.checked)"
+                           class="form-checkbox text-blue-600 rounded-sm">
+                    <span>Show Step Visualizer</span>
+                </label>
+                
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" checked id="toggle-inversion-tip" onchange="toggleDisplay('inversion-tip-block', this.checked)"
+                           class="form-checkbox text-blue-600 rounded-sm">
+                    <span>Show Inversion Tip</span>
+                </label>
+            </div>
+        </div>
         <div class="p-4 bg-gray-100 rounded-xl mb-6 shadow-inner border border-gray-200">
             <div class="grid grid-cols-2 gap-4">
             
                 <div>
                     <label for="key-select" class="block text-xs font-medium text-gray-700 mb-1">Root Key</label>
+               
                     <select id="key-select" onchange="handleKeyChange(event.target.value)"
                             class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
-                        </select>
+                        [span_17](start_span)</select>[span_17](end_span)
                 </div>
 
+              
                 <div>
-                    <label for="mode-select" class="block text-xs font-medium text-gray-700 mb-1">Scale Type</label>
+                    [span_18](start_span)<label for="mode-select" class="block text-xs font-medium text-gray-700 mb-1">Scale Type</label>[span_18](end_span)
                     <select id="mode-select" onchange="handleModeChange(event.target.value)"
                             class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
-                        </select>
+          
+                        [span_19](start_span)</select>[span_19](end_span)
                 </div>
 
                 <button id="mode-chord-btn" onclick="handleVisualizationModeChange('chord')"
                         class="viz-btn w-full text-sm md:text-base">
                     Chord View
-                </button>
+    
+                [span_20](start_span)</button>[span_20](end_span)
                 
                 <button id="mode-scale-btn" onclick="handleVisualizationModeChange('scale')"
                         class="viz-btn w-full text-sm md:text-base">
                     Scale View
-                </button>
+      
+                [span_21](start_span)</button>[span_21](end_span)
             </div>
         </div>
         
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             
             <div id="consolidated-display" class="py-3 px-4 bg-blue-50 text-blue-800 rounded-lg shadow-inner border border-blue-200 text-center">
-                </div>
+               
+                [span_22](start_span)</div>[span_22](end_span)
             
             <div id="sheet-music-container" class="p-4 bg-gray-100 border border-gray-300 rounded-xl shadow-inner">
                 <h2 class="text-xl font-bold text-gray-800 mb-3 border-b pb-2">Musical Staff</h2>
                 <div id="staff-display" class="w-full overflow-x-scroll">
                     </div>
-            </div>
+      
+                [span_23](start_span)</div>[span_23](end_span)
 
         </div>
         
         <div id="piano-container" class="keyboard-container overflow-x-scroll pb-4 mt-4">
-            <div id="step-visualizer-track" style="width: 1320px; position: relative; height: 30px;" class="mt-1 mb-1">
+            [span_24](start_span)<div id="step-visualizer-track-parent"> <div id="step-visualizer-track" style="width: 1320px; position: relative; height: 30px;" class="mt-1 mb-1">[span_24](end_span)
                 </div>
+            </div>
             <svg id="piano-keyboard-svg" width="100%" height="200" preserveAspectRatio="xMinYMin slice"></svg>
         </div>
         
-        <div class="mt-4 mb-6 py-3 px-4 bg-yellow-100 border-2 border-yellow-400 text-yellow-800 text-sm rounded-lg text-center font-bold shadow-md">
-            Click the <span class="text-blue-700 font-extrabold">ACTIVE</span> Roman numeral to cycle <span class="text-indigo-700">INVERSIONS</span> (Root, 1st, 2nd) in Chord View.
+        <div id="inversion-tip-block" class="mt-4 mb-6 py-3 px-4 bg-yellow-100 border-2 border-yellow-400 text-yellow-800 text-sm rounded-lg text-center font-bold shadow-md">
+            Click the <span class="text-blue-700 font-extrabold">ACTIVE</span> Roman numeral to cycle <span class="text-indigo-700">INVERSIONS</span> (Root, 1st, 
+            [span_25](start_span)2nd) in Chord View.[span_25](end_span)
         </div>
 
         <div id="chord-buttons-container" class="grid grid-cols-4 sm:grid-cols-7 gap-3">
@@ -132,96 +185,105 @@
         const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental } = Vex.Flow;
 
         // --- CONSTANTS AND MAPPING ---
-        const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    
+        [span_26](start_span)const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];[span_26](end_span)
         const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11]; 
         
         // VexFlow Key Signature Map (based on Major/Minor key name)
         const KEY_SIGNATURE_MAP = [
             'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'
-        ];
+     
+        [span_27](start_span)];[span_27](end_span)
 
         const SCALE_MODES = {
             'major': {
                 name: 'Ionian (Major)',
                 intervals: [0, 2, 4, 5, 7, 9, 11],
                 steps: ["W", "W", "H", "W", "W", "W", "H"],
+                
                 triadQualities: ["Maj", "min", "min", "Maj", "Maj", "min", "dim", "Maj"], 
                 qualities: ["I", "ii", "iii", "IV", "V", "vi", "vii°", "VIII (I)"], 
                 chordSteps: [0, 2, 4], 
                 degrees: 8, 
                 isDiatonic: true
-            },
+          
+            [span_28](start_span)},[span_28](end_span)
             'natural_minor': {
                 name: 'Aeolian (Natural Minor)',
                 intervals: [0, 2, 3, 5, 7, 8, 10],
                 steps: ["W", "H", "W", "W", "H", "W", "W"],
-                triadQualities: ["min", "dim", "Maj", "min", "min", "Maj", "Maj", "min"],
+                triadQualities: ["min", "dim", "Maj", 
+                    [span_29](start_span)"min", "min", "Maj", "Maj", "min"],[span_29](end_span)
                 qualities: ["i", "ii°", "III", "iv", "v", "VI", "VII", "viii (i)"],
                 chordSteps: [0, 2, 4],
                 degrees: 8,
                 isDiatonic: true
             },
+      
             'harmonic_minor': {
                 name: 'Harmonic Minor',
                 intervals: [0, 2, 3, 5, 7, 8, 11], 
                 steps: ["W", "H", "W", "W", "H", "1.5", "H"], 
                 triadQualities: ["min", "dim", "Aug", "min", "Maj", "Maj", "dim", "min"], 
-                qualities: ["i", "ii°", "III+", "iv", "V", "VI", "vii°", "viii (i)"],
+  
+                [span_30](start_span)qualities: ["i", "ii°", "III+", "iv", "V", "VI", "vii°", "viii (i)"],[span_30](end_span)
                 chordSteps: [0, 2, 4],
                 degrees: 8, 
                 isDiatonic: true
-            },
+            [span_31](start_span)},[span_31](end_span)
+           
             'major_pentatonic': {
                 name: 'Major Pentatonic',
                 intervals: [0, 2, 4, 7, 9],
                 steps: ["W", "W", "1.5", "W", "1.5"], 
                 triadQualities: ["", "", "", "", ""], 
+               
                 qualities: ["1", "2", "3", "4", "5"], 
                 chordSteps: [0], 
                 degrees: 5,
                 isDiatonic: false
-            },
+            [span_32](start_span)},[span_32](end_span)
             'minor_pentatonic': {
-                name: 'Minor Pentatonic',
+                
+                [span_33](start_span)name: 'Minor Pentatonic',[span_33](end_span)
                 intervals: [0, 3, 5, 7, 10],
                 steps: ["1.5", "W", "W", "1.5", "W"],
                 triadQualities: ["", "", "", "", ""],
                 qualities: ["1", "2", "3", "4", "5"], 
-                chordSteps: [0],
+             
+                [span_34](start_span)chordSteps: [0],[span_34](end_span)
                 degrees: 5,
                 isDiatonic: false
             }
         };
-        
-        // MIDI note range updated: B3 (59) to B6 (95) - 37 keys total
-        const START_MIDI = 59; // B3
-        const END_MIDI = 95;   // B6 
+        [span_35](start_span)// MIDI note range updated: B3 (59) to B6 (95) - 37 keys total[span_35](end_span)
+        const START_MIDI = 59; [span_36](start_span)// B3[span_36](end_span)
+        const END_MIDI = 95; [span_37](start_span)// B6[span_37](end_span)
         
         // --- SVG KEYBOARD CONFIGURATION ---
         const KEYBOARD_CONFIG = {
             TOTAL_KEYS_RANGE: END_MIDI - START_MIDI + 1, // 37 keys
             WHITE_KEYS_COUNT: 22, // B3, C4, D4, E4, F4, G4, A4, B4, C5, ... B6
             KEYBOARD_WIDTH: 1320, // 22 white keys * 60px/key
-            KEYBOARD_HEIGHT: 200,
+  
+            [span_38](start_span)KEYBOARD_HEIGHT: 200,[span_38](end_span)
             KEY_Y_START: 10,
             WHITE_KEY_HEIGHT: 180,
             WHITE_KEY_WIDTH: 1320 / 22, // 60px
             BLACK_KEY_WIDTH: (1320 / 22) * 0.6, // 36px
             BLACK_KEY_HEIGHT: 110,
         };
-
         const KEY_COLORS = {
             WHITE: '#ffffff',
             BLACK: '#1f2937',
             HIGHLIGHT_WHITE: '#3b82f6',     // Blue for Root/Scale
             HIGHLIGHT_BLACK: '#2563eb',     // Darker Blue for Root/Scale
             
-            // Inverted colors (matching the indigo button)
+            [span_39](start_span)// Inverted colors (matching the indigo button)[span_39](end_span)
             INVERTED_HIGHLIGHT_WHITE: '#4f46e5', // Indigo-600
             INVERTED_HIGHLIGHT_BLACK: '#4338ca'  // Indigo-700
-        };
-        
-        const PIANO_KEY_DATA = [];
+        [span_40](start_span)};[span_40](end_span)
+        [span_41](start_span)const PIANO_KEY_DATA = [];[span_41](end_span)
         
 
         // --- STATE ---
@@ -231,126 +293,121 @@
             currentDegree: 1, 
             currentInversion: 0, 
             highlightedPitchClasses: [], 
-            highlightedMidiNotes: [], 
+         
+            [span_42](start_span)highlightedMidiNotes: [],[span_42](end_span)
             isCenteringEnabled: true, // ALWAYS true now
             visualizationMode: 'scale' 
-        };
-
-        // --- CORE MUSIC THEORY LOGIC ---
+        [span_43](start_span)};[span_43](end_span)
+        [span_44](start_span)// --- CORE MUSIC THEORY LOGIC ---[span_44](end_span)
         
         function getCurrentMode() {
-            return SCALE_MODES[state.currentModeId];
+            [span_45](start_span)return SCALE_MODES[state.currentModeId];[span_45](end_span)
         }
 
         /**
-         * Gets the simplified name of the current key and mode (e.g., "Key of C - Ionian (Major)").
+         * [span_46](start_span)Gets the simplified name of the current key and mode (e.g., "Key of C - Ionian (Major)").[span_46](end_span)
          */
         function getSimplifiedKeyName() {
-            const rootName = KEYS[state.currentKeyIndex];
+            [span_47](start_span)const rootName = KEYS[state.currentKeyIndex];[span_47](end_span)
             const modeName = getCurrentMode().name;
-            return `Key of ${rootName} - ${modeName}`;
+            [span_48](start_span)return `Key of ${rootName} - ${modeName}`;[span_48](end_span)
         }
 
 
         /**
-         * Calculates the full, detailed name for the selected chord/note, including inversion.
-         * This is used for the display above the keyboard.
+         * [span_49](start_span)Calculates the full, detailed name for the selected chord/note, including inversion.[span_49](end_span)
+         * [span_50](start_span)This is used for the display above the keyboard.[span_50](end_span)
          */
         function getDetailedHighlightName() {
-            const mode = getCurrentMode();
+            [span_51](start_span)const mode = getCurrentMode();[span_51](end_span)
             const intervals = mode.intervals;
             const degree = state.currentDegree;
 
             // Calculate the interval offset 
-            let degreeInterval;
+            [span_52](start_span)let degreeInterval;[span_52](end_span)
             if (degree === 8) {
-                degreeInterval = 12;
+                [span_53](start_span)degreeInterval = 12;[span_53](end_span)
             } else {
                 if (degree > intervals.length) {
-                    degreeInterval = 0; 
+                    [span_54](start_span)degreeInterval = 0;[span_54](end_span)
                 } else {
-                    degreeInterval = intervals[degree - 1]; 
+                    [span_55](start_span)degreeInterval = intervals[degree - 1];[span_55](end_span)
                 }
             }
             
-            const highlightRootIndex = (state.currentKeyIndex + degreeInterval) % 12;
+            [span_56](start_span)const highlightRootIndex = (state.currentKeyIndex + degreeInterval) % 12;[span_56](end_span)
             const highlightRootName = KEYS[highlightRootIndex]; 
             
-            const degreeIndex = (degree === 8) ? 0 : degree - 1;
-
+            const degreeIndex = (degree === 8) ? [span_57](start_span)0 : degree - 1;[span_57](end_span)
             if (state.visualizationMode === 'chord' && mode.isDiatonic && mode.intervals.length === 7) {
                 // Chord selected: CMaj (I) (Root position)
-                const romanNumeral = mode.qualities[degreeIndex];
+                [span_58](start_span)const romanNumeral = mode.qualities[degreeIndex];[span_58](end_span)
                 const quality = mode.triadQualities[degreeIndex];
                 
                 let inversionText = 'Root Position';
                 if (state.currentInversion === 1) {
-                    inversionText = '1st Inversion / 6';
+                    [span_59](start_span)inversionText = '1st Inversion / 6';[span_59](end_span)
                 } else if (state.currentInversion === 2) {
-                    inversionText = '2nd Inversion / 6/4';
+                    [span_60](start_span)inversionText = '2nd Inversion / 6/4';[span_60](end_span)
                 }
 
                 // Selected: prefix
-                return `Selected: ${highlightRootName}${quality} (${romanNumeral}) (${inversionText})`;
+                [span_61](start_span)return `Selected: ${highlightRootName}${quality} (${romanNumeral}) (${inversionText})`;[span_61](end_span)
             } else {
                 // Note selected: C (1st)
-                let degreeText;
+                [span_62](start_span)let degreeText;[span_62](end_span)
                 if (degree === 1) {
-                    degreeText = '1st';
+                    [span_63](start_span)degreeText = '1st';[span_63](end_span)
                 } else if (degree === 2) {
-                    degreeText = '2nd';
+                    [span_64](start_span)degreeText = '2nd';[span_64](end_span)
                 } else if (degree === 3) {
-                    degreeText = '3rd';
+                    [span_65](start_span)degreeText = '3rd';[span_65](end_span)
                 } else if (degree === 8) {
-                    degreeText = 'Octave (8th)';
+                    [span_66](start_span)degreeText = 'Octave (8th)';[span_66](end_span)
                 } else {
-                    degreeText = `${degree}th`;
+                    [span_67](start_span)degreeText = `${degree}th`;[span_67](end_span)
                 }
                 
                 // Selected: prefix
-                return `Selected: ${highlightRootName} (${degreeText})`;
+                [span_68](start_span)return `Selected: ${highlightRootName} (${degreeText})`;[span_68](end_span)
             }
         }
 
         /**
-         * Calculates the specific MIDI notes for the selected chord, applying the current inversion.
+         * [span_69](start_span)Calculates the specific MIDI notes for the selected chord, applying the current inversion.[span_69](end_span)
          */
         function calculateChordMidiNotes(keyIndex, degree, inversion) {
-            const mode = getCurrentMode();
+            [span_70](start_span)const mode = getCurrentMode();[span_70](end_span)
             const scaleIntervals = mode.intervals;
             
-            const octaveShift = (degree === 8) ? 12 : 0;
-            const scaleDegreeIndex = (degree === 8) ? 0 : degree - 1; 
-
+            const octaveShift = (degree === 8) ? [span_71](start_span)12 : 0;[span_71](end_span)
+            const scaleDegreeIndex = (degree === 8) ? [span_72](start_span)0 : degree - 1;[span_72](end_span)
             // --- NEW LOGIC: Determine the base MIDI for the Tonic (Root Key) of the scale ---
             // We want the tonic to start as low as possible on the keyboard (B3 to A#4 range)
-            let tonicMidi;
+            [span_73](start_span)let tonicMidi;[span_73](end_span)
             if (keyIndex === 11) { // B key (Index 11)
-                tonicMidi = 59; // B3
+                tonicMidi = 59; [span_74](start_span)// B3[span_74](end_span)
             } else {
-                tonicMidi = 60 + keyIndex; // C4 (60) up to A#4 (70)
+                tonicMidi = 60 + keyIndex; [span_75](start_span)// C4 (60) up to A#4 (70)[span_75](end_span)
             }
             // --- END NEW LOGIC ---
 
             if (!mode.isDiatonic || mode.intervals.length < 7 || state.visualizationMode === 'scale') {
-                 return calculateSingleScaleMidiNote(keyIndex, degree);
+                 [span_76](start_span)return calculateSingleScaleMidiNote(keyIndex, degree);[span_76](end_span)
             }
             
-            const stepsInChord = mode.chordSteps; 
-            
+            [span_77](start_span)const stepsInChord = mode.chordSteps;[span_77](end_span)
             const rootIntervalFromTonic = scaleIntervals[scaleDegreeIndex];
             // The lowest MIDI note of the chord, based on the scale's root (tonicMidi) and the degree offset
-            const lowestRootMidi = tonicMidi + rootIntervalFromTonic;
-            
+            [span_78](start_span)const lowestRootMidi = tonicMidi + rootIntervalFromTonic;[span_78](end_span)
             const scaleLength = mode.intervals.length; 
             
             const thirdIndex = (scaleDegreeIndex + stepsInChord[1]) % scaleLength;
             const fifthIndex = (scaleDegreeIndex + stepsInChord[2]) % scaleLength;
-
-            let semitoneOffsetThird = scaleIntervals[thirdIndex] - scaleIntervals[scaleDegreeIndex];
+            [span_79](start_span)let semitoneOffsetThird = scaleIntervals[thirdIndex] - scaleIntervals[scaleDegreeIndex];[span_79](end_span)
             if (semitoneOffsetThird < 0) semitoneOffsetThird += 12; 
             
-            let semitoneOffsetFifth = scaleIntervals[fifthIndex] - scaleIntervals[scaleDegreeIndex];
+            [span_80](start_span)let semitoneOffsetFifth = scaleIntervals[fifthIndex] - scaleIntervals[scaleDegreeIndex];[span_80](end_span)
             if (semitoneOffsetFifth < 0) semitoneOffsetFifth += 12; 
 
             let chordComponents = [
@@ -358,122 +415,122 @@
                 lowestRootMidi + semitoneOffsetThird, 
                 lowestRootMidi + semitoneOffsetFifth  
             ];
-            
             if (octaveShift === 12) {
-                chordComponents = chordComponents.map(midi => midi + 12);
+                [span_81](start_span)chordComponents = chordComponents.map(midi => midi + 12);[span_81](end_span)
             }
 
             // Apply Inversion
             if (degree <= 7) {
                 for (let i = 0; i < inversion; i++) {
-                    const lowestNote = chordComponents.shift(); 
+                    [span_82](start_span)const lowestNote = chordComponents.shift();[span_82](end_span)
                     chordComponents.push(lowestNote + 12);     
                 }
             }
             
-            return chordComponents.filter(midi => midi >= START_MIDI && midi <= END_MIDI);
+            [span_83](start_span)return chordComponents.filter(midi => midi >= START_MIDI && midi <= END_MIDI);[span_83](end_span)
         }
 
         /**
-         * Calculates the specific MIDI note for the root of the selected scale degree. Used in Scale View.
+         * [span_84](start_span)Calculates the specific MIDI note for the root of the selected scale degree.[span_84](end_span)
+         * Used in Scale View.
          */
         function calculateSingleScaleMidiNote(keyIndex, degree) {
-            const scaleIntervals = getCurrentMode().intervals;
-            
+            [span_85](start_span)const scaleIntervals = getCurrentMode().intervals;[span_85](end_span)
             let intervalOffset;
             if (degree === 8) {
-                intervalOffset = 12;
+                [span_86](start_span)intervalOffset = 12;[span_86](end_span)
             } else {
                 if (degree > scaleIntervals.length) {
-                    intervalOffset = scaleIntervals[0]; 
+                    [span_87](start_span)intervalOffset = scaleIntervals[0];[span_87](end_span)
                 } else {
-                    intervalOffset = scaleIntervals[degree - 1];
+                    [span_88](start_span)intervalOffset = scaleIntervals[degree - 1];[span_88](end_span)
                 }
             }
 
             // --- NEW LOGIC: Determine the base MIDI for the Tonic (Root Key) of the scale ---
-            let tonicMidi;
+            [span_89](start_span)let tonicMidi;[span_89](end_span)
             if (keyIndex === 11) { // B key (Index 11)
-                tonicMidi = 59; // B3
+                tonicMidi = 59; [span_90](start_span)// B3[span_90](end_span)
             } else {
-                tonicMidi = 60 + keyIndex; // C4 (60) up to A#4 (70)
+                tonicMidi = 60 + keyIndex; [span_91](start_span)// C4 (60) up to A#4 (70)[span_91](end_span)
             }
             // --- END NEW LOGIC ---
 
-            const rootMidi = tonicMidi + intervalOffset;
-            
-            return [rootMidi].filter(midi => midi >= START_MIDI && midi <= END_MIDI);
+            [span_92](start_span)const rootMidi = tonicMidi + intervalOffset;[span_92](end_span)
+            [span_93](start_span)return [rootMidi].filter(midi => midi >= START_MIDI && midi <= END_MIDI);[span_93](end_span)
         }
         
         // --- VEXFLOW RENDERING (New) ---
 
         /**
-         * Converts MIDI note number (e.g., 60) to VexFlow string format (e.g., 'c/4').
+         * [span_94](start_span)Converts MIDI note number (e.g., 60) to VexFlow string format (e.g., 'c/4').[span_94](end_span)
          */
         function getVexFlowNoteString(midi) {
             // Note names (C=0, C#=1, ..., B=11)
-            const noteNames = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];
+            [span_95](start_span)const noteNames = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];[span_95](end_span)
             const noteIndex = midi % 12;
-            const octave = Math.floor(midi / 12) - 1; // MIDI 60 is C4, so Octave 4
+            const octave = Math.floor(midi / 12) - 1; [span_96](start_span)// MIDI 60 is C4, so Octave 4[span_96](end_span)
             
-            return `${noteNames[noteIndex]}/${octave}`;
+            [span_97](start_span)return `${noteNames[noteIndex]}/${octave}`;[span_97](end_span)
         }
         
         /**
-         * Calculates the appropriate key signature string for VexFlow.
+         * [span_98](start_span)Calculates the appropriate key signature string for VexFlow.[span_98](end_span)
          */
         function getVexFlowKeySignature() {
-            const mode = getCurrentMode();
+            [span_99](start_span)const mode = getCurrentMode();[span_99](end_span)
             const modeId = state.currentModeId;
 
             // Diatonic 7-note scales (Major and Natural Minor) get a key signature
             if (mode.isDiatonic && mode.intervals.length === 7) {
-                let keyIndex = state.currentKeyIndex;
-
+                [span_100](start_span)let keyIndex = state.currentKeyIndex;[span_100](end_span)
                 if (modeId === 'natural_minor' || modeId === 'aeolian') {
                     // Find the relative major key index (3 semitones up)
-                    keyIndex = (keyIndex + 3) % 12;
+                    [span_101](start_span)keyIndex = (keyIndex + 3) % 12;[span_101](end_span)
                 }
                 
                 // Use the Major Key Signature map for the determined key
-                return KEY_SIGNATURE_MAP[keyIndex];
-
+                [span_102](start_span)return KEY_SIGNATURE_MAP[keyIndex];[span_102](end_span)
             } else {
                 // All other modes/scales (e.g., pentatonic, harmonic minor) get no key signature
-                return 'C'; 
+                [span_103](start_span)return 'C';[span_103](end_span)
             }
         }
         
         /**
-         * Renders the sheet music staff with the highlighted notes.
+         * [span_104](start_span)Renders the sheet music staff with the highlighted notes.[span_104](end_span)
          */
         function drawSheetMusic() {
-            const container = document.getElementById('staff-display');
+            [span_105](start_span)const container = document.getElementById('staff-display');[span_105](end_span)
             container.innerHTML = ''; // Clear previous SVG/Canvas
 
+            // Check if the container is hidden by the user's toggle
+            const containerWrapper = document.getElementById('sheet-music-container');
+            if (containerWrapper && containerWrapper.classList.contains('hidden')) {
+                return;
+            }
+
             if (state.highlightedMidiNotes.length === 0) {
-                 container.innerHTML = '<p class="text-center text-gray-500 py-4">Select a key and scale degree to view the notes on the staff.</p>';
+                 [span_106](start_span)container.innerHTML = '<p class="text-center text-gray-500 py-4">Select a key and scale degree to view the notes on the staff.</p>';[span_106](end_span)
                  return;
             }
             
             // --- VexFlow Setup ---
             // Set max width to 450px to ensure it looks good even when in a 50% column on large screens
-            const width = container.offsetWidth > 450 ? 450 : container.offsetWidth;
+            const width = container.offsetWidth > 450 ? [span_107](start_span)450 : container.offsetWidth;[span_107](end_span)
             const height = 140;
             
             const renderer = new Renderer(container, Renderer.Backends.SVG);
             renderer.resize(width, height);
             const context = renderer.getContext();
-            context.clear(); 
-            
+            [span_108](start_span)context.clear();[span_108](end_span)
             // --- Stave (Staff) Setup ---
-            const stave = new Stave(10, 10, width - 20); // x, y, width
+            const stave = new Stave(10, 10, width - 20); [span_109](start_span)// x, y, width[span_109](end_span)
             
             // Add treble clef
-            stave.addClef('treble');
-            
+            [span_110](start_span)stave.addClef('treble');[span_110](end_span)
             // Determine and add key signature
-            const keySig = getVexFlowKeySignature();
+            [span_111](start_span)const keySig = getVexFlowKeySignature();[span_111](end_span)
             stave.addKeySignature(keySig);
             
             stave.setContext(context).draw();
@@ -481,363 +538,346 @@
             // --- Note Setup ---
             
             // 1. Get the VexFlow note strings (e.g., ['c/4', 'e/4', 'g/4'])
-            const vexFlowNotes = state.highlightedMidiNotes.map(getVexFlowNoteString);
-            
+            [span_112](start_span)const vexFlowNotes = state.highlightedMidiNotes.map(getVexFlowNoteString);[span_112](end_span)
             // 2. Create the StaveNote
             // Use 1/4 duration for display
             const note = new StaveNote({
                 keys: vexFlowNotes,
                 duration: 'q', 
-            });
-            
-            // 3. Add accidentals for notes not in the key signature.
+            [span_113](start_span)});[span_113](end_span)
+            [span_114](start_span)// 3. Add accidentals for notes not in the key signature.[span_114](end_span)
             // VexFlow's auto-accidental functionality makes this easy, but we need to check 
-            // the Harmonic Minor scale's raised 7th (e.g., G# in A Harmonic Minor).
-            
+            [span_115](start_span)// the Harmonic Minor scale's raised 7th (e.g., G# in A Harmonic Minor).[span_115](end_span)
             // The logic here is tricky: VexFlow handles notes that *must* have an accidental
-            // to conform to the note name vs. key signature. E.g., in C Major (key of C),
-            // a C# must have a sharp accidental, but a C doesn't need a natural.
-            
+            [span_116](start_span)// to conform to the note name vs. key signature.[span_116](end_span)
+            [span_117](start_span)// E.g., in C Major (key of C),[span_117](end_span)
+            [span_118](start_span)// a C# must have a sharp accidental, but a C doesn't need a natural.[span_118](end_span)
             // For non-diatonic scales like Harmonic Minor, we use key signature 'C' (no sharps/flats)
-            // and must add accidentals manually for every note.
-            
-            const mode = getCurrentMode();
+            [span_119](start_span)// and must add accidentals manually for every note.[span_119](end_span)
+            [span_120](start_span)const mode = getCurrentMode();[span_120](end_span)
             if (!mode.isDiatonic || mode.intervals.length !== 7 || state.currentModeId === 'harmonic_minor') {
                  // For non-diatonic or harmonic minor, assume no key signature and add all accidentals
-                 // The easiest way is to use StaveNote's `addAccidental`.
-                 
-                 // VexFlow's `key` property on StaveNote already encodes the sharp/flat. 
-                 // We just need to ensure the accidental is *drawn*.
-                 
+                 [span_121](start_span)// The easiest way is to use StaveNote's `addAccidental`.[span_121](end_span)
+                 [span_122](start_span)// VexFlow's `key` property on StaveNote already encodes the sharp/flat.[span_122](end_span)
+                 [span_123](start_span)// We just need to ensure the accidental is *drawn*.[span_123](end_span)
                  vexFlowNotes.forEach((vfNote, index) => {
-                    const noteParts = vfNote.split('/'); // ['c#', '4']
+                    [span_124](start_span)const noteParts = vfNote.split('/'); // ['c#', '4'][span_124](end_span)
                     const noteName = noteParts[0];
                     let accidentalType = '';
                     
+     
                     if (noteName.length > 1) {
-                        accidentalType = noteName.slice(1); // # or b
+                        accidentalType = noteName.slice(1); [span_125](start_span)// # or b[span_125](end_span)
                         
-                        if (accidentalType === '#') {
+                        [span_126](start_span)if (accidentalType === '#') {[span_126](end_span)
                             note.addModifier(new Accidental("#"), index);
                         } else if (accidentalType === 'b') {
                             note.addModifier(new Accidental("b"), index);
-                        }
+         
+                        [span_127](start_span)}
                     }
-                 });
-                 
-                 // If the key is 'C', the key signature is empty, so all accidentals will show up.
-                 // If a note in the list is 'c/4' and the key is 'C' (no accidentals), 
-                 // VexFlow won't add a natural. It's best to let VexFlow's context handle it.
+                 });[span_127](end_span)
+            [span_128](start_span)// If the key is 'C', the key signature is empty, so all accidentals will show up.[span_128](end_span)
+            [span_129](start_span)// If a note in the list is 'c/4' and the key is 'C' (no accidentals),[span_129](end_span)
+                 [span_130](start_span)// VexFlow won't add a natural.[span_130](end_span)
+            [span_131](start_span)// It's best to let VexFlow's context handle it.[span_131](end_span)
             }
             
             
             // --- Voice and Drawing ---
             
-            const voice = new Voice({ num_beats: 1, beat_value: 4 }); // Treat as a single whole beat
-            voice.addTickables([note]);
-            
+            const voice = new Voice({ num_beats: 1, beat_value: 4 }); [span_132](start_span)// Treat as a single whole beat[span_132](end_span)
+            [span_133](start_span)voice.addTickables([note]);[span_133](end_span)
             // Format and justify the notes to fit the stave width
-            new Formatter().joinVoices([voice]).format([voice], width - 40); 
-            
+            [span_134](start_span)new Formatter().joinVoices([voice]).format([voice], width - 40);[span_134](end_span)
             // Render the notes
-            voice.draw(context, stave);
+            [span_135](start_span)voice.draw(context, stave);[span_135](end_span)
         }
 
         // --- RENDERING FUNCTIONS (continued) ---
         
         /**
-         * Calculates the 0-based index of a white key, counting from START_MIDI (B3).
+         * [span_136](start_span)Calculates the 0-based index of a white key, counting from START_MIDI (B3).[span_136](end_span)
          */
         function getWhiteKeyIndex(midi) {
-            let count = 0;
+            [span_137](start_span)let count = 0;[span_137](end_span)
             for (let i = START_MIDI; i <= midi; i++) {
                  // Check if pitch class is a white key (C=0, D=2, E=4, F=5, G=7, A=9, B=11)
                  if (MAJOR_INTERVALS.includes(i % 12)) {
-                     count++;
+                     [span_138](start_span)count++;[span_138](end_span)
                  }
             }
-            return count - 1; 
+            [span_139](start_span)return count - 1;[span_139](end_span)
         }
 
         /**
-         * Calculates the X position of a key based on its MIDI number (start of the key).
+         * [span_140](start_span)Calculates the X position of a key based on its MIDI number (start of the key).[span_140](end_span)
          */
         function getKeyXPosition(midi) {
-            const pitchClass = midi % 12;
+            [span_141](start_span)const pitchClass = midi % 12;[span_141](end_span)
             const isWhiteKey = MAJOR_INTERVALS.includes(pitchClass);
             const WKW = KEYBOARD_CONFIG.WHITE_KEY_WIDTH;
             const BKW = KEYBOARD_CONFIG.BLACK_KEY_WIDTH;
 
-            const whiteKeyIndex = getWhiteKeyIndex(midi);
-
+            [span_142](start_span)const whiteKeyIndex = getWhiteKeyIndex(midi);[span_142](end_span)
             if (isWhiteKey) {
-                return whiteKeyIndex * WKW;
+                [span_143](start_span)return whiteKeyIndex * WKW;[span_143](end_span)
             } else {
                 // Black keys are positioned relative to the white key to their immediate left (which is midi - 1)
-                const leftWhiteKeyIndex = getWhiteKeyIndex(midi - 1);
+                [span_144](start_span)const leftWhiteKeyIndex = getWhiteKeyIndex(midi - 1);[span_144](end_span)
                 const leftWhiteKeyX = leftWhiteKeyIndex * WKW;
                 const seamX = leftWhiteKeyX + WKW;
-                return seamX - (BKW / 2); 
+                [span_145](start_span)return seamX - (BKW / 2);[span_145](end_span)
             }
         }
         
         /**
-         * Helper to get key center X position.
+         * [span_146](start_span)Helper to get key center X position.[span_146](end_span)
          */
         function getKeyCenterX(midi) {
-            const pitchClass = midi % 12;
+            [span_147](start_span)const pitchClass = midi % 12;[span_147](end_span)
             const x = getKeyXPosition(midi);
             const isWhite = MAJOR_INTERVALS.includes(pitchClass);
             const WKW = KEYBOARD_CONFIG.WHITE_KEY_WIDTH;
-            const BKW = KEYBOARD_CONFIG.BLACK_KEY_WIDTH;
-            return x + (isWhite ? WKW / 2 : BKW / 2);
+            [span_148](start_span)const BKW = KEYBOARD_CONFIG.BLACK_KEY_WIDTH;[span_148](end_span)
+            [span_149](start_span)return x + (isWhite ? WKW / 2 : BKW / 2);[span_149](end_span)
         }
 
         /**
-         * Renders the W/H/1.5 step indicators in the track above the keyboard.
+         * [span_150](start_span)Renders the W/H/1.5 step indicators in the track above the keyboard.[span_150](end_span)
          */
         function renderStepVisualizer() {
-            const track = document.getElementById('step-visualizer-track');
-            
+            [span_151](start_span)const track = document.getElementById('step-visualizer-track');[span_151](end_span)
             track.innerHTML = ''; 
 
             if (state.visualizationMode === 'chord') {
-                return;
+                [span_152](start_span)return;[span_152](end_span)
             }
 
             const mode = getCurrentMode();
-            const scaleSteps = mode.steps;
+            [span_153](start_span)const scaleSteps = mode.steps;[span_153](end_span)
             const scaleIntervals = mode.intervals;
             
             // Determine the base MIDI for the Tonic (Root Key) of the scale
-            let tonicMidi;
+            [span_154](start_span)let tonicMidi;[span_154](end_span)
             if (state.currentKeyIndex === 11) { // B key (Index 11)
-                tonicMidi = 59; // B3
+                tonicMidi = 59; [span_155](start_span)// B3[span_155](end_span)
             } else {
-                tonicMidi = 60 + state.currentKeyIndex; // C4 (60) up to A#4 (70)
+                tonicMidi = 60 + state.currentKeyIndex; [span_156](start_span)// C4 (60) up to A#4 (70)[span_156](end_span)
             }
 
 
             for (let i = 0; i < scaleSteps.length; i++) { 
-                const step = scaleSteps[i];
-                
+                [span_157](start_span)const step = scaleSteps[i];[span_157](end_span)
                 const currentNoteMidi = tonicMidi + scaleIntervals[i];
 
                 let stepInSemitones;
                 if (i === scaleSteps.length - 1) {
-                    stepInSemitones = 12 - scaleIntervals[i];
+                    [span_158](start_span)stepInSemitones = 12 - scaleIntervals[i];[span_158](end_span)
                 } else {
-                    stepInSemitones = scaleIntervals[i + 1] - scaleIntervals[i];
+                    [span_159](start_span)stepInSemitones = scaleIntervals[i + 1] - scaleIntervals[i];[span_159](end_span)
                 }
 
-                if (stepInSemitones <= 0) continue; 
-
+                [span_160](start_span)if (stepInSemitones <= 0) continue;[span_160](end_span)
                 const nextNoteMidi = currentNoteMidi + stepInSemitones;
                 
                 // Ensure we don't try to draw steps for notes outside the rendered range
-                if (currentNoteMidi < START_MIDI || nextNoteMidi > END_MIDI) continue;
-
+                [span_161](start_span)if (currentNoteMidi < START_MIDI || nextNoteMidi > END_MIDI) continue;[span_161](end_span)
                 const x1 = getKeyCenterX(currentNoteMidi);
                 const x2 = getKeyCenterX(nextNoteMidi);
 
                 const centerX = (x1 + x2) / 2;
                 
                 let stepColorClass;
-                let tooltipText;
+                [span_162](start_span)let tooltipText;[span_162](end_span)
                 let stepLabel;
 
                 if (step === 'W') { 
-                    stepColorClass = 'bg-green-600'; 
+                    [span_163](start_span)stepColorClass = 'bg-green-600';[span_163](end_span)
                     tooltipText = 'Whole Step';
                     stepLabel = 'W';
                 } else if (step === 'H') { 
-                    stepColorClass = 'bg-red-600'; 
+                    [span_164](start_span)stepColorClass = 'bg-red-600';[span_164](end_span)
                     tooltipText = 'Half Step';
                     stepLabel = 'H';
                 } else if (step === '1.5') { 
-                    stepColorClass = 'bg-purple-600'; 
+                    [span_165](start_span)stepColorClass = 'bg-purple-600';[span_165](end_span)
                     tooltipText = 'Augmented Step (1.5)';
                     stepLabel = 'A'; 
                 } else {
-                    continue; 
+                    [span_166](start_span)continue;[span_166](end_span)
                 }
                 
-                const indicator = document.createElement('div');
+                [span_167](start_span)const indicator = document.createElement('div');[span_167](end_span)
                 indicator.className = `absolute top-0 transform -translate-x-1/2 step-indicator transition-all duration-300 shadow-md 
                                         w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold 
                                         ${stepColorClass}
-                                        group cursor-help hover:scale-125`;
-                
+ 
+                                        [span_168](start_span)group cursor-help hover:scale-125`;[span_168](end_span)
                 indicator.innerHTML = `
                     ${stepLabel}
                     <span class="absolute top-full mt-1 px-2 py-0.5 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
                         ${tooltipText}
-                    </span>
+                    
+                    [span_169](start_span)</span>[span_169](end_span)
                 `;
                 
-                indicator.style.left = `${centerX}px`; 
-                
+                [span_170](start_span)indicator.style.left = `${centerX}px`;[span_170](end_span)
                 track.appendChild(indicator);
             }
         }
 
 
         function drawKeyboard() {
-            const svg = document.getElementById('piano-keyboard-svg');
+            [span_171](start_span)const svg = document.getElementById('piano-keyboard-svg');[span_171](end_span)
             const highlightedMidiNotes = state.highlightedMidiNotes; 
             
             // Set SVG size based on new calculated width (1320px)
-            svg.setAttribute('width', `${KEYBOARD_CONFIG.KEYBOARD_WIDTH}px`);
+            [span_172](start_span)svg.setAttribute('width', `${KEYBOARD_CONFIG.KEYBOARD_WIDTH}px`);[span_172](end_span)
             svg.setAttribute('viewBox', `0 0 ${KEYBOARD_CONFIG.KEYBOARD_WIDTH} ${KEYBOARD_CONFIG.KEYBOARD_HEIGHT}`);
             svg.innerHTML = ''; 
 
             const WKW = KEYBOARD_CONFIG.WHITE_KEY_WIDTH;
             const BKW = KEYBOARD_CONFIG.BLACK_KEY_WIDTH;
             const WKH = KEYBOARD_CONFIG.WHITE_KEY_HEIGHT;
-            const Y_START = KEYBOARD_CONFIG.KEY_Y_START;
+            [span_173](start_span)const Y_START = KEYBOARD_CONFIG.KEY_Y_START;[span_173](end_span)
             
             // Determine which highlight color set to use
-            const useInvertedColors = state.visualizationMode === 'chord' && state.currentInversion > 0;
-            
+            [span_174](start_span)const useInvertedColors = state.visualizationMode === 'chord' && state.currentInversion > 0;[span_174](end_span)
             const whiteHighlightColor = useInvertedColors ? KEY_COLORS.INVERTED_HIGHLIGHT_WHITE : KEY_COLORS.HIGHLIGHT_WHITE;
-            const blackHighlightColor = useInvertedColors ? KEY_COLORS.INVERTED_HIGHLIGHT_BLACK : KEY_COLORS.HIGHLIGHT_BLACK;
-
-
+            const blackHighlightColor = useInvertedColors ? [span_175](start_span)KEY_COLORS.INVERTED_HIGHLIGHT_BLACK : KEY_COLORS.HIGHLIGHT_BLACK;[span_175](end_span)
             // 1. Draw White Keys first
             PIANO_KEY_DATA.forEach(key => {
                 if (key.isWhite) {
                     const isHighlighted = highlightedMidiNotes.includes(key.midi); 
                     const x = getKeyXPosition(key.midi); 
 
-                    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+               
+                    [span_176](start_span)const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");[span_176](end_span)
                     rect.setAttribute('x', x);
                     rect.setAttribute('y', Y_START);
                     rect.setAttribute('width', WKW);
                     rect.setAttribute('height', WKH);
-                    rect.setAttribute('rx', 4); 
+       
+                    [span_177](start_span)rect.setAttribute('rx', 4);[span_177](end_span)
                     rect.setAttribute('ry', 4);
                     rect.setAttribute('stroke', '#a1a1ae');
                     rect.setAttribute('stroke-width', '1');
-                    rect.setAttribute('fill', isHighlighted ? whiteHighlightColor : KEY_COLORS.WHITE);
+                    [span_178](start_span)rect.setAttribute('fill', isHighlighted ? whiteHighlightColor : KEY_COLORS.WHITE);[span_178](end_span)
                     rect.classList.add('highlight-transition'); 
                     
-                    svg.appendChild(rect);
-
+                    [span_179](start_span)svg.appendChild(rect);[span_179](end_span)
                     // --- Labeling Logic for White Keys ---
                     let labelText = null;
-                    let labelFill = isHighlighted ? KEY_COLORS.WHITE : '#4b5563'; 
+                    let labelFill = isHighlighted ? [span_180](start_span)KEY_COLORS.WHITE : '#4b5563';[span_180](end_span)
                     
                     // Calculate Octave for display: 
-                    const octave = Math.floor(key.midi / 12) - 1;
-
+                    [span_181](start_span)const octave = Math.floor(key.midi / 12) - 1;[span_181](end_span)
                     if (isHighlighted) {
-                         labelText = key.name;
+                         [span_182](start_span)labelText = key.name;[span_182](end_span)
                     } else if (key.name === 'C' || key.name === 'F' || key.name === 'B') {
                         // Label C, F, B keys (for easier reference)
-                        labelText = `${key.name}${octave}`;
+                        [span_183](start_span)labelText = `${key.name}${octave}`;[span_183](end_span)
                     }
 
                     if (labelText) {
-                        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                        [span_184](start_span)const text = document.createElementNS("http://www.w3.org/2000/svg", "text");[span_184](end_span)
                         text.setAttribute('x', x + WKW / 2);
                         text.setAttribute('y', Y_START + WKH - 10);
                         text.setAttribute('text-anchor', 'middle');
                         text.setAttribute('font-size', '14');
                         text.setAttribute('font-weight', '600');
                         text.setAttribute('fill', labelFill);
-                        text.textContent = labelText;
+                        [span_185](start_span)text.textContent = labelText;[span_185](end_span)
                         svg.appendChild(text);
                     }
                 }
-            });
-
+            [span_186](start_span)});[span_186](end_span)
             // 2. Draw Black Keys second (to place them on top)
             PIANO_KEY_DATA.forEach(key => {
                 if (!key.isWhite) {
                     const isHighlighted = highlightedMidiNotes.includes(key.midi);
                     
-                    const x = getKeyXPosition(key.midi); 
+               
+                    [span_187](start_span)const x = getKeyXPosition(key.midi);[span_187](end_span)
 
                     const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
                     rect.setAttribute('x', x);
                     rect.setAttribute('y', Y_START);
                     rect.setAttribute('width', BKW);
-                    rect.setAttribute('height', KEYBOARD_CONFIG.BLACK_KEY_HEIGHT);
+    
+                    [span_188](start_span)rect.setAttribute('height', KEYBOARD_CONFIG.BLACK_KEY_HEIGHT);[span_188](end_span)
                     rect.setAttribute('rx', 3); 
                     rect.setAttribute('ry', 3);
                     rect.setAttribute('stroke', '#000000');
-                    rect.setAttribute('stroke-width', '1');
+                   
+                    [span_189](start_span)rect.setAttribute('stroke-width', '1');[span_189](end_span)
                     rect.setAttribute('fill', isHighlighted ? blackHighlightColor : KEY_COLORS.BLACK);
-                    rect.classList.add('highlight-transition'); 
-
-                    svg.appendChild(rect);
+                    rect.classList.add('highlight-transition');
+                    [span_190](start_span)svg.appendChild(rect);[span_190](end_span)
                     
                     // Black Key Labeling: Shows name if highlighted 
                     if (isHighlighted) {
-                        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                        [span_191](start_span)const text = document.createElementNS("http://www.w3.org/2000/svg", "text");[span_191](end_span)
                         text.setAttribute('x', x + BKW / 2);
                         text.setAttribute('y', Y_START + KEYBOARD_CONFIG.BLACK_KEY_HEIGHT - 10);
                         text.setAttribute('text-anchor', 'middle');
                         text.setAttribute('font-size', '14');
                         text.setAttribute('font-weight', '600');
                         text.setAttribute('fill', KEY_COLORS.WHITE);
-                        text.textContent = key.name;
+                        [span_192](start_span)text.textContent = key.name;[span_192](end_span)
                         svg.appendChild(text);
                     }
                 }
-            });
-            
+            [span_193](start_span)});[span_193](end_span)
             const pianoContainer = document.getElementById('piano-container');
             
             // --- UPDATED SCROLLING LOGIC: Center the entire span of the chord ---
             
             if (state.highlightedMidiNotes.length > 0) {
-                const firstMidi = state.highlightedMidiNotes[0];
+                [span_194](start_span)const firstMidi = state.highlightedMidiNotes[0];[span_194](end_span)
                 const lastMidi = state.highlightedMidiNotes[state.highlightedMidiNotes.length - 1];
 
                 // Find the X position of the leftmost edge of the first key
-                const startKeyX = getKeyXPosition(firstMidi);
-
+                [span_195](start_span)const startKeyX = getKeyXPosition(firstMidi);[span_195](end_span)
                 // Find the X position of the rightmost edge of the last key
-                const lastKeyData = PIANO_KEY_DATA.find(k => k.midi === lastMidi);
-                
+                [span_196](start_span)const lastKeyData = PIANO_KEY_DATA.find(k => k.midi === lastMidi);[span_196](end_span)
                 if (lastKeyData) {
-                    const lastKeyWidth = lastKeyData.isWhite ? KEYBOARD_CONFIG.WHITE_KEY_WIDTH : KEYBOARD_CONFIG.BLACK_KEY_WIDTH;
+                    const lastKeyWidth = lastKeyData.isWhite ?
+                        [span_197](start_span)KEYBOARD_CONFIG.WHITE_KEY_WIDTH : KEYBOARD_CONFIG.BLACK_KEY_WIDTH;[span_197](end_span)
                     const endKeyX = getKeyXPosition(lastMidi) + lastKeyWidth;
 
                     // Calculate the center of the total visual span
-                    const spanCenter = (startKeyX + endKeyX) / 2;
-                    
+                    [span_198](start_span)const spanCenter = (startKeyX + endKeyX) / 2;[span_198](end_span)
                     const containerWidth = pianoContainer.offsetWidth;
 
-                    // Calculate the scroll position needed to center the span's midpoint.
+                    [span_199](start_span)// Calculate the scroll position needed to center the span's midpoint.[span_199](end_span)
                     let centerScrollX = spanCenter - (containerWidth / 2);
 
                     // Clamp the scroll position to prevent scrolling out of bounds
-                    centerScrollX = Math.max(0, centerScrollX);
+                    [span_200](start_span)centerScrollX = Math.max(0, centerScrollX);[span_200](end_span)
                     centerScrollX = Math.min(KEYBOARD_CONFIG.KEYBOARD_WIDTH - containerWidth, centerScrollX);
 
                     requestAnimationFrame(() => {
                         // Smoothly scroll to the center position
                         pianoContainer.scroll({ left: centerScrollX, behavior: 'smooth' });
-                    });
+                    [span_201](start_span)});[span_201](end_span)
                 }
             }
         }
         
         function renderKeySelect() {
-            const select = document.getElementById('key-select');
+            [span_202](start_span)const select = document.getElementById('key-select');[span_202](end_span)
             select.innerHTML = KEYS.map((key, index) => 
                 `<option value="${index}" ${index === state.currentKeyIndex ? 'selected' : ''}>${key}</option>`
-            ).join('');
+            [span_203](start_span)).join('');[span_203](end_span)
         }
         
         /**
-         * Renders all scale modes, filtering out pentatonic for Chord View.
+         * [span_204](start_span)Renders all scale modes, filtering out pentatonic for Chord View.[span_204](end_span)
          */
         function renderModeSelect() {
-            const select = document.getElementById('mode-select');
-            
+            [span_205](start_span)const select = document.getElementById('mode-select');[span_205](end_span)
             const allModes = Object.entries(SCALE_MODES);
             let modesToRender = allModes;
 
@@ -845,44 +885,38 @@
                 // Filter: Only allow 7-note diatonic scales in Chord View
                 modesToRender = allModes.filter(([id, mode]) => 
                     mode.isDiatonic && mode.intervals.length === 7
-                );
-                
+                [span_206](start_span));[span_206](end_span)
                 // If the current mode is a filtered-out one (like pentatonic), reset to 'major'
-                const currentModeExists = modesToRender.some(([id]) => id === state.currentModeId);
+                [span_207](start_span)const currentModeExists = modesToRender.some(([id]) => id === state.currentModeId);[span_207](end_span)
                 if (!currentModeExists) {
-                     state.currentModeId = 'major';
+                     [span_208](start_span)state.currentModeId = 'major';[span_208](end_span)
                      state.currentDegree = 1; 
                 }
             }
             
             select.innerHTML = modesToRender.map(([id, mode]) => 
                 `<option value="${id}" ${id === state.currentModeId ? 'selected' : ''}>${mode.name}</option>`
-            ).join('');
+            [span_209](start_span)).join('');[span_209](end_span)
         }
         
         /**
-         * Updates the Chord View and Scale View buttons with Tailwind classes for blue active state.
+         * [span_210](start_span)Updates the Chord View and Scale View buttons with Tailwind classes for blue active state.[span_210](end_span)
          */
         function renderVisualizationModeButtons() {
-            const isChord = state.visualizationMode === 'chord';
-            
+            [span_211](start_span)const isChord = state.visualizationMode === 'chord';[span_211](end_span)
             const chordBtn = document.getElementById('mode-chord-btn');
             const scaleBtn = document.getElementById('mode-scale-btn');
 
             // Classes for the ACTIVE (blue) state
-            const activeClasses = ['bg-blue-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-300', 'border-blue-600'];
-            
+            [span_212](start_span)const activeClasses = ['bg-blue-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-300', 'border-blue-600'];[span_212](end_span)
             // Classes for the INACTIVE (gray/white) state
-            const inactiveClasses = ['bg-white', 'text-gray-700', 'hover:bg-gray-200', 'border-gray-300', 'shadow-sm'];
-
+            [span_213](start_span)const inactiveClasses = ['bg-white', 'text-gray-700', 'hover:bg-gray-200', 'border-gray-300', 'shadow-sm'];[span_213](end_span)
             const updateButton = (btn, isActive) => {
-                if (!btn) return;
-                
+                [span_214](start_span)if (!btn) return;[span_214](end_span)
                 // Toggle active classes
-                activeClasses.forEach(cls => btn.classList.toggle(cls, isActive));
-                
+                [span_215](start_span)activeClasses.forEach(cls => btn.classList.toggle(cls, isActive));[span_215](end_span)
                 // Toggle inactive classes
-                inactiveClasses.forEach(cls => btn.classList.toggle(cls, !isActive));
+                [span_216](start_span)inactiveClasses.forEach(cls => btn.classList.toggle(cls, !isActive));[span_216](end_span)
             };
 
             updateButton(chordBtn, isChord);
@@ -890,18 +924,17 @@
         }
 
         function renderChordButtons() {
-            const container = document.getElementById('chord-buttons-container');
+            [span_217](start_span)const container = document.getElementById('chord-buttons-container');[span_217](end_span)
             const mode = getCurrentMode();
             const qualities = mode.qualities;
             const triadQualities = mode.triadQualities;
             
-            const numDegrees = mode.degrees; 
+            [span_218](start_span)const numDegrees = mode.degrees;[span_218](end_span)
             const isScaleView = state.visualizationMode === 'scale';
             
-            const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord' && state.currentDegree !== 8;
-
+            [span_219](start_span)const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord' && state.currentDegree !== 8;[span_219](end_span)
             // Adjust grid layout dynamically
-            container.classList.remove('sm:grid-cols-7', 'sm:grid-cols-5', 'sm:grid-cols-8');
+            [span_220](start_span)container.classList.remove('sm:grid-cols-7', 'sm:grid-cols-5', 'sm:grid-cols-8');[span_220](end_span)
             container.classList.add(numDegrees === 8 ? 'sm:grid-cols-8' : 'sm:grid-cols-5');
 
 
@@ -910,83 +943,107 @@
                 const isActive = degree === state.currentDegree;
                 
                 const qualityIndex = index; 
-                const isInvrted = isActive && state.currentInversion > 0; // Flag for inverted state
+         
+                [span_221](start_span)const isInvrted = isActive && state.currentInversion > 0; // Flag for inverted state[span_221](end_span)
 
                 let inversionSuffix = '';
                 let qualityDisplay = '';
                 let mainButtonText = '';
                 let secondaryButtonText = '';
+     
                 
-                if (isScaleView) {
+                [span_222](start_span)if (isScaleView) {[span_222](end_span)
                     // SCALE VIEW: Use simple Arabic numeral (1, 2, 3...)
                     mainButtonText = degree.toString(); 
                 } else {
-                    // CHORD VIEW: Use Roman numeral and chord quality/inversion
+ 
+                    [span_223](start_span)// CHORD VIEW: Use Roman numeral and chord quality/inversion[span_223](end_span)
                     mainButtonText = romanNumeral;
                     qualityDisplay = mode.isDiatonic && mode.intervals.length === 7 ? triadQualities[qualityIndex] : '';
                     
-                    if (isActive && degree <= 7 && canInvert && state.currentInversion > 0) {
+ 
+                    [span_224](start_span)if (isActive && degree <= 7 && canInvert && state.currentInversion > 0) {[span_224](end_span)
                          // Use common figured bass shorthand for display on the buttons
-                         inversionSuffix = state.currentInversion === 1 ? ' / 6' : ' / 6/4';
+                         inversionSuffix = state.currentInversion === 1 ? [span_225](start_span)' / 6' : ' / 6/4';[span_225](end_span)
                     }
-                    secondaryButtonText = `${qualityDisplay}${inversionSuffix}`;
+                    [span_226](start_span)secondaryButtonText = `${qualityDisplay}${inversionSuffix}`;[span_226](end_span)
                 }
                 
-                let buttonClasses = 'bg-gray-100 text-gray-700 hover:bg-gray-300 shadow-sm';
-
+                [span_227](start_span)let buttonClasses = 'bg-gray-100 text-gray-700 hover:bg-gray-300 shadow-sm';[span_227](end_span)
                 if (isActive && !isInvrted) {
                     // Active, Root Position
-                    buttonClasses = 'bg-blue-700 text-white ring-4 ring-blue-300 transform scale-105 shadow-xl';
+                    [span_228](start_span)buttonClasses = 'bg-blue-700 text-white ring-4 ring-blue-300 transform scale-105 shadow-xl';[span_228](end_span)
                 } else if (isInvrted) {
                     // Active, INVERTED Position: Use strong contrasting style (Indigo + Yellow ring)
-                    buttonClasses = 'bg-indigo-600 text-white ring-4 ring-yellow-400 transform scale-105 shadow-2xl border-2 border-white';
+                    [span_229](start_span)buttonClasses = 'bg-indigo-600 text-white ring-4 ring-yellow-400 transform scale-105 shadow-2xl border-2 border-white';[span_229](end_span)
                 }
 
 
                 return `
                     <button onclick="handleDegreeChange(${degree})"
                             class="py-3 px-2 rounded-lg font-extrabold transition duration-200 
-                            flex flex-col items-center justify-center min-h-20
+                            
+                            [span_230](start_span)flex flex-col items-center justify-center min-h-20[span_230](end_span)
                             ${buttonClasses}"> 
                         <span class="text-xl">${mainButtonText}</span>
                         <span class="text-xs font-medium opacity-80">${secondaryButtonText}</span>
-                    </button>
-                `;
+               
+                    [span_231](start_span)</button>[span_231](end_span)
+                [span_232](start_span)`;[span_232](end_span)
             }).join('');
         }
 
         /**
-         * Renders the consolidated display block above the keyboard.
+         * [span_233](start_span)Renders the consolidated display block above the keyboard.[span_233](end_span)
          */
         function renderConsolidatedDisplay() {
-            const display = document.getElementById('consolidated-display');
+            [span_234](start_span)const display = document.getElementById('consolidated-display');[span_234](end_span)
             const detailedText = getDetailedHighlightName();
             const keyModeText = getSimplifiedKeyName();
 
             display.innerHTML = `
                 <p class="text-lg font-bold">${detailedText}</p>
                 <p class="text-sm font-medium opacity-90 mt-1">${keyModeText}</p>
-            `;
+            [span_235](start_span)`;[span_235](end_span)
         }
         
-        // --- HANDLERS ---
+        // --- NEW DISPLAY TOGGLE HANDLER ---
+        
+        /**
+         * Toggles the display of a UI element using the Tailwind 'hidden' class.
+         */
+        function toggleDisplay(elementId, isChecked) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            if (isChecked) {
+                element.classList.remove('hidden');
+            } else {
+                element.classList.add('hidden');
+            }
+            
+            // Re-render the staff when its container's visibility changes to resize VexFlow
+            if (elementId === 'sheet-music-container') {
+                drawSheetMusic(); 
+            }
+        }
+        
+        // --- CORE HANDLERS ---
         
         function updateUI() {
             // Renders mode select and handles scale filtering/resetting state.currentModeId if needed
-            renderModeSelect(); 
-
+            [span_236](start_span)renderModeSelect();[span_236](end_span)
             const mode = getCurrentMode();
             
             // Check for degree bounds
             if (state.currentDegree > mode.degrees) {
-                state.currentDegree = 1;
+                [span_237](start_span)state.currentDegree = 1;[span_237](end_span)
             }
             
             // Check for inversion validity
-            const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord' && state.currentDegree !== 8;
-            
+            [span_238](start_span)const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord' && state.currentDegree !== 8;[span_238](end_span)
             if (!canInvert) {
-                state.currentInversion = 0;
+                [span_239](start_span)state.currentInversion = 0;[span_239](end_span)
             }
 
             // Calculate new highlights
@@ -994,62 +1051,62 @@
                 state.highlightedMidiNotes = calculateChordMidiNotes(
                     state.currentKeyIndex, 
                     state.currentDegree,
-                    state.currentInversion 
+          
+                    [span_240](start_span)state.currentInversion[span_240](end_span)
                 );
-            } else { // 'scale' mode
+            [span_241](start_span)} else { // 'scale' mode[span_241](end_span)
                 state.highlightedMidiNotes = calculateSingleScaleMidiNote(
                     state.currentKeyIndex, 
                     state.currentDegree
-                );
+                [span_242](start_span));[span_242](end_span)
             }
             
-            state.highlightedPitchClasses = state.highlightedMidiNotes.map(midi => midi % 12);
-            
+            [span_243](start_span)state.highlightedPitchClasses = state.highlightedMidiNotes.map(midi => midi % 12);[span_243](end_span)
             // Render UI components
             renderKeySelect();
             renderChordButtons();
-            renderConsolidatedDisplay(); // Renders both key/mode and highlight in one go
-            renderStepVisualizer(); 
-            renderVisualizationModeButtons(); // Updates button active states
+            [span_244](start_span)renderConsolidatedDisplay();[span_244](end_span)
+            // Renders both key/mode and highlight in one go
+            [span_245](start_span)renderStepVisualizer();[span_245](end_span)
+            renderVisualizationModeButtons(); [span_246](start_span)// Updates button active states[span_246](end_span)
             drawKeyboard(); 
-            drawSheetMusic(); // NEW: Draw the sheet music
+            [span_247](start_span)drawSheetMusic();[span_247](end_span)
+            // NEW: Draw the sheet music
         }
 
         function handleKeyChange(keyIndex) {
-            state.currentKeyIndex = parseInt(keyIndex);
+            [span_248](start_span)state.currentKeyIndex = parseInt(keyIndex);[span_248](end_span)
             state.currentDegree = 1; 
             state.currentInversion = 0; 
             updateUI();
         }
 
         function handleModeChange(modeId) {
-            state.currentModeId = modeId;
+            [span_249](start_span)state.currentModeId = modeId;[span_249](end_span)
             state.currentDegree = 1; 
             state.currentInversion = 0; 
             updateUI();
         }
         
         function handleDegreeChange(degree) {
-            const mode = getCurrentMode();
-            
-            const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord' && degree !== 8;
-
+            [span_250](start_span)const mode = getCurrentMode();[span_250](end_span)
+            [span_251](start_span)const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord' && degree !== 8;[span_251](end_span)
             if (degree === state.currentDegree) {
                 if (canInvert) {
                     // Cycle inversion if already selected
-                    state.currentInversion = (state.currentInversion + 1) % 3; 
+                    [span_252](start_span)state.currentInversion = (state.currentInversion + 1) % 3;[span_252](end_span)
                 } else {
-                    state.currentInversion = 0;
+                    [span_253](start_span)state.currentInversion = 0;[span_253](end_span)
                 }
             } else {
-                state.currentDegree = degree;
+                [span_254](start_span)state.currentDegree = degree;[span_254](end_span)
                 state.currentInversion = 0; 
             }
-            updateUI();
+            [span_255](start_span)updateUI();[span_255](end_span)
         }
 
         function handleVisualizationModeChange(mode) {
-            state.visualizationMode = mode;
+            [span_256](start_span)state.visualizationMode = mode;[span_256](end_span)
             state.currentInversion = 0; 
             updateUI();
         }
@@ -1059,22 +1116,23 @@
             const manifestContent = {
                 "name": "TheoryViz",
                 "short_name": "TheoryViz",
-                "start_url": ".",
+               
+                [span_257](start_span)"start_url": ".",[span_257](end_span)
                 "display": "standalone",
                 "background_color": "#ffffff",
                 "theme_color": "#3b82f6",
                 "icons": [
                     {"src": "https://placehold.co/192x192/3b82f6/ffffff?text=TV", "sizes": "192x192", "type": "image/png"},
-                    {"src": "https://placehold.co/512x512/3b82f6/ffffff?text=TV", "sizes": "512x512", "type": "image/png"}
+     
+                    [span_258](start_span){"src": "https://placehold.co/512x512/3b82f6/ffffff?text=TV", "sizes": "512x512", "type": "image/png"}[span_258](end_span)
                 ]
             };
-
-            const manifestBlob = new Blob([JSON.stringify(manifestContent)], {type : 'application/json'});
+            [span_259](start_span)const manifestBlob = new Blob([JSON.stringify(manifestContent)], {type : 'application/json'});[span_259](end_span)
             const manifestUrl = URL.createObjectURL(manifestBlob);
             
             const link = document.createElement('link');
             link.rel = 'manifest';
-            link.href = manifestUrl;
+            [span_260](start_span)link.href = manifestUrl;[span_260](end_span)
             document.head.appendChild(link);
         }
         // --- APPLICATION STARTUP ---
@@ -1082,14 +1140,15 @@
         window.onload = () => {
              // Re-initialize PIANO_KEY_DATA
              PIANO_KEY_DATA.length = 0;
-             for (let i = START_MIDI; i <= END_MIDI; i++) {
+             [span_261](start_span)for (let i = START_MIDI; i <= END_MIDI; i++) {[span_261](end_span)
                  PIANO_KEY_DATA.push({
                      midi: i,
                      pitchClass: i % 12,
                      name: KEYS[i % 12],
-                     isWhite: MAJOR_INTERVALS.includes(i % 12),
+    
+                     [span_262](start_span)isWhite: MAJOR_INTERVALS.includes(i % 12),[span_262](end_span)
                  });
-             }
+             [span_263](start_span)}[span_263](end_span)
              updateUI();
              registerPwa();
         };
