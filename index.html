@@ -47,15 +47,22 @@
             border-width: 1px; /* Ensure border is present for both states */
         }
         
-        /* Style the VexFlow container to ensure it looks good */
+        /* FIX 1: Use position: relative on the parent to anchor the absolute SVG */
         #staff-display {
             min-height: 150px; /* Ensure visibility before drawing */
+            position: relative; /* ADDED */
         }
         
-        /* Ensures the canvas/svg element from VexFlow doesn't look bad */
+        /* FIX 2: Use absolute positioning + CSS transform for centering and shifting */
         #staff-display > svg {
             display: block;
-            margin: 0 auto;
+            position: absolute; /* ADDED */
+            left: 50%;          /* ADDED */
+            /* The base transform for centering. The JS will augment this property */
+            transform: translateX(-50%); 
+            
+            /* Added for smooth visual feedback when the keyboard scrolls */
+            transition: transform 0.1s linear; /* ADDED */
         }
 
     </style>
@@ -99,19 +106,15 @@
             </div>
         </div>
         
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            
-            <div id="consolidated-display" class="py-3 px-4 bg-blue-50 text-blue-800 rounded-lg shadow-inner border border-blue-200 text-center">
-                </div>
-            
-            <div id="sheet-music-container" class="p-4 bg-gray-100 border border-gray-300 rounded-xl shadow-inner">
-                <h2 class="text-xl font-bold text-gray-800 mb-3 border-b pb-2">Musical Staff</h2>
-                <div id="staff-display" class="w-full overflow-x-scroll">
-                    </div>
+        <div id="consolidated-display" class="mb-4 py-3 px-4 bg-blue-50 text-blue-800 rounded-lg shadow-inner border border-blue-200 text-center">
             </div>
-
-        </div>
         
+        <div id="sheet-music-container" class="mt-6 p-4 bg-gray-100 border border-gray-300 rounded-xl shadow-inner">
+            <h2 class="text-xl font-bold text-gray-800 mb-3 border-b pb-2">Musical Staff</h2>
+            <div id="staff-display" class="w-full overflow-x-scroll">
+                </div>
+        </div>
+
         <div id="piano-container" class="keyboard-container overflow-x-scroll pb-4 mt-4">
             <div id="step-visualizer-track" style="width: 1320px; position: relative; height: 30px;" class="mt-1 mb-1">
                 </div>
@@ -461,6 +464,7 @@
             const width = container.offsetWidth > 450 ? 450 : container.offsetWidth;
             const height = 140;
             
+            // The renderer needs a fresh container to draw correctly
             const renderer = new Renderer(container, Renderer.Backends.SVG);
             renderer.resize(width, height);
             const context = renderer.getContext();
@@ -491,24 +495,9 @@
             });
             
             // 3. Add accidentals for notes not in the key signature.
-            // VexFlow's auto-accidental functionality makes this easy, but we need to check 
-            // the Harmonic Minor scale's raised 7th (e.g., G# in A Harmonic Minor).
-            
-            // The logic here is tricky: VexFlow handles notes that *must* have an accidental
-            // to conform to the note name vs. key signature. E.g., in C Major (key of C),
-            // a C# must have a sharp accidental, but a C doesn't need a natural.
-            
-            // For non-diatonic scales like Harmonic Minor, we use key signature 'C' (no sharps/flats)
-            // and must add accidentals manually for every note.
-            
             const mode = getCurrentMode();
             if (!mode.isDiatonic || mode.intervals.length !== 7 || state.currentModeId === 'harmonic_minor') {
                  // For non-diatonic or harmonic minor, assume no key signature and add all accidentals
-                 // The easiest way is to use StaveNote's `addAccidental`.
-                 
-                 // VexFlow's `key` property on StaveNote already encodes the sharp/flat. 
-                 // We just need to ensure the accidental is *drawn*.
-                 
                  vexFlowNotes.forEach((vfNote, index) => {
                     const noteParts = vfNote.split('/'); // ['c#', '4']
                     const noteName = noteParts[0];
@@ -524,10 +513,6 @@
                         }
                     }
                  });
-                 
-                 // If the key is 'C', the key signature is empty, so all accidentals will show up.
-                 // If a note in the list is 'c/4' and the key is 'C' (no accidentals), 
-                 // VexFlow won't add a natural. It's best to let VexFlow's context handle it.
             }
             
             
@@ -541,6 +526,33 @@
             
             // Render the notes
             voice.draw(context, stave);
+        }
+        
+        // --- FIX 3: NEW PIANO SCROLL HANDLER FOR STAFF SHIFT ---
+        /**
+         * Reads the scroll position of the piano container and applies a proportional
+         * horizontal offset to the musical staff's SVG to create a synchronized shift.
+         */
+        function handlePianoScroll() {
+            const pianoContainer = document.getElementById('piano-container');
+            const staffDisplay = document.getElementById('staff-display');
+            
+            // The VexFlow SVG is the first (and only) child of staff-display
+            const svg = staffDisplay.querySelector('svg');
+            
+            if (!pianoContainer || !svg) return;
+
+            const scrollLeft = pianoContainer.scrollLeft;
+            
+            // Apply a small fraction of the scroll distance (e.g., 1/20th = 0.05) 
+            // to the staff. This creates a subtle parallax effect.
+            const scrollFactor = 0.05; 
+            const pixelShift = scrollLeft * scrollFactor;
+
+            // Use calc() to apply the pixel shift in addition to the -50% centering.
+            // When scrollLeft increases (keyboard shifts left), pixelShift increases.
+            // We want the staff to shift left, so we subtract pixelShift.
+            svg.style.transform = `translateX(calc(-50% + ${-pixelShift}px))`; 
         }
 
         // --- RENDERING FUNCTIONS (continued) ---
@@ -820,8 +832,14 @@
                     requestAnimationFrame(() => {
                         // Smoothly scroll to the center position
                         pianoContainer.scroll({ left: centerScrollX, behavior: 'smooth' });
+                        
+                        // FIX 4: Immediately call the handler to position the staff correctly on load
+                        handlePianoScroll(); 
                     });
                 }
+            } else {
+                 // FIX 4: If no notes are highlighted, reset staff scroll to center (scrollLeft=0 results in -50%)
+                 handlePianoScroll();
             }
         }
         
@@ -870,7 +888,7 @@
             const scaleBtn = document.getElementById('mode-scale-btn');
 
             // Classes for the ACTIVE (blue) state
-            const activeClasses = ['bg-blue-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-300', 'border-blue-600'];
+            const activeClasses = ['bg-blue-700', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-300', 'border-blue-700'];
             
             // Classes for the INACTIVE (gray/white) state
             const inactiveClasses = ['bg-white', 'text-gray-700', 'hover:bg-gray-200', 'border-gray-300', 'shadow-sm'];
@@ -1012,7 +1030,7 @@
             renderStepVisualizer(); 
             renderVisualizationModeButtons(); // Updates button active states
             drawKeyboard(); 
-            drawSheetMusic(); // NEW: Draw the sheet music
+            drawSheetMusic(); 
         }
 
         function handleKeyChange(keyIndex) {
@@ -1090,6 +1108,13 @@
                      isWhite: MAJOR_INTERVALS.includes(i % 12),
                  });
              }
+             
+             // FIX 5: Attach the scroll listener to the piano container
+             const pianoContainer = document.getElementById('piano-container');
+             if (pianoContainer) {
+                 pianoContainer.addEventListener('scroll', handlePianoScroll);
+             }
+
              updateUI();
              registerPwa();
         };
