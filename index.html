@@ -355,12 +355,14 @@
 
             // --- Determine the base MIDI for the Tonic (Root Key) of the scale ---
             let tonicMidi;
-            if (keyIndex === 11) { // B key (Index 11)
-                tonicMidi = 59; // B3
-            } else {
-                tonicMidi = 60 + keyIndex; // C4 (60) up to A#4 (70)
+            // Keys C, C#, D, D# (PC 0-3) start in the 4th octave (MIDI 60-63).
+            if (keyIndex >= 0 && keyIndex <= 3) { 
+                tonicMidi = 60 + keyIndex; 
+            } else { 
+                // Keys E, F, F#, G, G#, A, A#, B (PC 4-11) start in the 3rd octave (MIDI 52-59).
+                tonicMidi = 52 + (keyIndex - 4); 
             }
-            // --- END NEW LOGIC ---
+            // --- END UPDATED LOGIC ---
 
             if (!mode.isDiatonic || mode.intervals.length < 7 || state.visualizationMode === 'scale') {
                  return calculateSingleScaleMidiNote(keyIndex, degree);
@@ -423,12 +425,14 @@
 
             // --- Determine the base MIDI for the Tonic (Root Key) of the scale ---
             let tonicMidi;
-            if (keyIndex === 11) { // B key (Index 11)
-                tonicMidi = 59; // B3
-            } else {
-                tonicMidi = 60 + keyIndex; // C4 (60) up to A#4 (70)
+            // Keys C, C#, D, D# (PC 0-3) start in the 4th octave (MIDI 60-63).
+            if (keyIndex >= 0 && keyIndex <= 3) { 
+                tonicMidi = 60 + keyIndex; 
+            } else { 
+                // Keys E, F, F#, G, G#, A, A#, B (PC 4-11) start in the 3rd octave (MIDI 52-59).
+                tonicMidi = 52 + (keyIndex - 4); 
             }
-            // --- END NEW LOGIC ---
+            // --- END UPDATED LOGIC ---
 
             const rootMidi = tonicMidi + intervalOffset;
             
@@ -438,27 +442,34 @@
         // --- VEXFLOW RENDERING ---
 
         /**
-         * Converts MIDI note number (e.g., 60) to VexFlow string format (e.g., 'c/4').
-         * Correctly handles enharmonic spelling based on the selected root key (state.currentKeyName).
+         * Converts MIDI note to VexFlow string and identifies required accidental.
+         * Returns { vfNote: 'c/4', accidental: '#' | 'b' | '' }
          */
-        function getVexFlowNoteString(midi) {
+        function getVexFlowNoteParts(midi) {
             const pitchClass = midi % 12;
             const octave = Math.floor(midi / 12) - 1; 
             const currentKeyName = state.currentKeyName;
             
-            let noteName;
+            let baseNoteName;
+            let requiredAccidental = ''; 
 
-            // Check if the current key is one of the explicit flat keys
-            if (FLAT_ROOT_KEYS.includes(currentKeyName)) {
-                // If the root key is flat, use the flat names for all notes.
-                // This forces notes like Db to be spelled 'db' and placed on the D line.
-                noteName = FLAT_KEYS[pitchClass];
+            // 1. Determine the correct spelling (sharp or flat) for the pitch class.
+            const isFlatKey = FLAT_ROOT_KEYS.includes(currentKeyName);
+            
+            // Use the raw sharp/flat names (c, c#, d, db, etc.) to figure out the required accidental
+            const rawNoteName = isFlatKey ? FLAT_KEYS[pitchClass] : SHARP_KEYS[pitchClass];
+
+            if (rawNoteName.length > 1) {
+                baseNoteName = rawNoteName.charAt(0); // e.g., 'c' from 'c#' or 'd' from 'db'
+                requiredAccidental = rawNoteName.slice(1); // e.g., '#' or 'b'
             } else {
-                // For all other keys (C, C#, D, D#, E, F, F#, G, G#, A, A#, B), use sharp/natural names.
-                noteName = SHARP_KEYS[pitchClass];
+                baseNoteName = rawNoteName; // e.g., 'c'
             }
             
-            return `${noteName}/${octave}`;
+            // VexFlow note string is always just the base note and octave (e.g., 'c/4')
+            const vfNote = `${baseNoteName}/${octave}`;
+
+            return { vfNote, accidental: requiredAccidental };
         }
         
         /**
@@ -526,20 +537,36 @@
             const height = 140; 
             
             // 1. NOTES FOR TREBLE CLEF (Original octave)
-            const trebleClefVexFlowNotes = state.highlightedMidiNotes.map(getVexFlowNoteString);
+            const trebleClefNoteParts = state.highlightedMidiNotes.map(getVexFlowNoteParts);
+            const trebleClefVexFlowNotes = trebleClefNoteParts.map(p => p.vfNote);
             
-            // 2. NOTES FOR BASS CLEF (Down one octave)
+            // 2. NOTES FOR BASS CLEF (Conditional one-octave down transposition)
             const bassClefMidiNotes = state.highlightedMidiNotes
-                .map(midi => midi - 12); // Transpose down one octave
-            const bassClefVexFlowNotes = bassClefMidiNotes.map(getVexFlowNoteString);
+                .map(midi => {
+                    const pitchClass = midi % 12;
+                    // Pitch classes E (4) through B (11) need to be dropped an octave.
+                    // This includes E, F, F#/Gb, G, G#/Ab, A, A#/Bb, and B.
+                    // Pitch classes C (0), C# (1)/Db, D (2), D# (3)/Eb remain at the original octave.
+                    if (pitchClass >= 4 && pitchClass <= 11) {
+                        return midi - 12; // Transpose down one octave
+                    }
+                    return midi; // Use original MIDI note
+                })
+                // Filter out any notes that might fall below the lowest reasonable MIDI for the bass clef (e.g., below MIDI 30/31)
+                .filter(midi => midi > 30); 
+
+            const bassClefNoteParts = bassClefMidiNotes.map(getVexFlowNoteParts);
+            const bassClefVexFlowNotes = bassClefNoteParts.map(p => p.vfNote);
+
 
             const keySig = getVexFlowKeySignature();
             
             // Determine if we need to manually add accidentals
+            // (e.g., for Harmonic Minor or scales without a key signature, like Pentatonic or C)
             const isNonDiatonicOrCKey = !getCurrentMode().isDiatonic || getCurrentMode().intervals.length !== 7 || state.currentModeId === 'harmonic_minor' || keySig === 'C';
             
             // --- Helper function to draw a single staff ---
-            const drawStaff = (container, clef, vfNotes) => {
+            const drawStaff = (container, clef, vfNotes, notePartsData) => {
                 
                 if (vfNotes.length === 0) {
                      // Display a message if no notes are left after transposition/filtering
@@ -565,27 +592,23 @@
 
                 // --- Note Setup ---
                 const note = new StaveNote({
-                    keys: vfNotes, // Use the passed-in VexFlow notes
+                    keys: vfNotes, // Use the passed-in VexFlow notes (e.g., ['c/4', 'e/4'])
                     duration: 'q', 
                     clef: clef 
                 });
                 
                 // Add accidentals if necessary
                 if (isNonDiatonicOrCKey) {
-                    vfNotes.forEach((vfNote, index) => {
-                        const noteParts = vfNote.split('/'); 
-                        const noteName = noteParts[0];
-                        let accidentalType = '';
+                    notePartsData.forEach((part, index) => {
+                        const accidentalType = part.accidental; // '#' or 'b'
                         
-                        if (noteName.length > 1) {
-                            accidentalType = noteName.slice(1); 
-                            
-                            // Only add accidentals if the note is sharp or flat
-                            if (accidentalType === '#') {
-                                note.addModifier(new Accidental("#"), index);
-                            } else if (accidentalType === 'b') {
-                                note.addModifier(new Accidental("b"), index);
-                            }
+                        // We rely on VexFlow to automatically add naturals to cancel the key signature 
+                        // when the note is simply the base letter name (e.g., 'b/4' in Eb Major).
+                        // We only explicitly add the accidental if the pitch is sharp or flat.
+                        if (accidentalType === '#') {
+                            note.addModifier(new Accidental("#"), index);
+                        } else if (accidentalType === 'b') {
+                            note.addModifier(new Accidental("b"), index);
                         }
                     });
                 }
@@ -602,10 +625,10 @@
             };
 
             // 1. Draw Treble Staff (using original notes)
-            drawStaff(containerTreble, 'treble', trebleClefVexFlowNotes);
+            drawStaff(containerTreble, 'treble', trebleClefVexFlowNotes, trebleClefNoteParts);
             
-            // 2. Draw Bass Staff (using transposed notes)
-            drawStaff(containerBass, 'bass', bassClefVexFlowNotes);
+            // 2. Draw Bass Staff (using conditionally transposed notes)
+            drawStaff(containerBass, 'bass', bassClefVexFlowNotes, bassClefNoteParts);
         }
 
         // --- KEYBOARD RENDERING HELPERS (Rest of the file is unchanged) ---
@@ -703,13 +726,14 @@
             const scaleSteps = mode.steps;
             const scaleIntervals = mode.intervals;
             
-            // Determine the base MIDI for the Tonic (Root Key) of the scale
+            // --- Determine the base MIDI for the Tonic (Root Key) of the scale (duplicated logic from above) ---
             let tonicMidi;
-            if (state.currentKeyIndex === 11) { // B key (Index 11)
-                tonicMidi = 59; // B3
-            } else {
-                tonicMidi = 60 + state.currentKeyIndex; // C4 (60) up to A#4 (70)
+            if (state.currentKeyIndex >= 0 && state.currentKeyIndex <= 3) { 
+                tonicMidi = 60 + state.currentKeyIndex; 
+            } else { 
+                tonicMidi = 52 + (state.currentKeyIndex - 4); 
             }
+            // --- END UPDATED LOGIC ---
 
 
             for (let i = 0; i < scaleSteps.length; i++) { 
