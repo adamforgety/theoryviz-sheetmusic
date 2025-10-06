@@ -47,22 +47,20 @@
             border-width: 1px; /* Ensure border is present for both states */
         }
         
-        /* Style the VexFlow container to ensure it looks good */
+        /* FIX: Use position: relative on the parent to anchor the absolute SVG */
         #staff-display {
             min-height: 150px; /* Ensure visibility before drawing */
+            position: relative;
         }
         
-        /* FIX: Remove margin: 0 auto; from the SVG to allow translateX to work. 
-           We now use Flexbox on the parent to center it.
-        */
-        #sheet-music-container #staff-display {
-            display: flex; /* Use flexbox to center content */
-            justify-content: center; /* Center horizontally */
-        }
-        
+        /* FIX: Use absolute positioning + CSS transform for centering */
         #staff-display > svg {
             display: block;
-            /* margin: 0 auto; removed */ 
+            position: absolute;
+            left: 50%;
+            /* The base transform for centering. The JS will update this property */
+            transform: translateX(-50%); 
+            
             /* Added for smooth visual feedback when the keyboard scrolls */
             transition: transform 0.1s linear; 
         }
@@ -553,12 +551,12 @@
             // Apply a small fraction of the scroll distance (e.g., 1/20th = 0.05) 
             // to the staff. This creates a subtle parallax effect.
             const scrollFactor = 0.05; 
-            const translateX = scrollLeft * scrollFactor;
+            const pixelShift = scrollLeft * scrollFactor;
 
-            // Apply the transform to the VexFlow SVG. We use a negative sign so that
-            // when the keyboard content appears to shift left (scrollLeft increases),
-            // the staff content also shifts left, reinforcing the centered look.
-            svg.style.transform = `translateX(${-translateX}px)`; 
+            // FIX: Use calc() to apply the pixel shift in addition to the -50% centering.
+            // When scrollLeft increases (keyboard shifts left), pixelShift increases.
+            // We want the staff to shift left, so we subtract pixelShift.
+            svg.style.transform = `translateX(calc(-50% + ${-pixelShift}px))`; 
         }
         
         // --- RENDERING FUNCTIONS (continued) ---
