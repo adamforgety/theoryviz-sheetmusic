@@ -126,26 +126,17 @@
 
         </div>
         
-        <div id="piano-container" class="keyboard-container overflow-x-scroll pb-4 mt-2 mb-2">
+        <div id="piano-container" class="keyboard-container overflow-x-scroll pb-4 mt-4">
             <div id="step-visualizer-track" style="width: 1320px;
                 position: relative; height: 30px;" class="mt-1 mb-1">
                 </div>
             <svg id="piano-keyboard-svg" width="100%" height="200" preserveAspectRatio="xMinYMin slice"></svg>
         </div>
         
-        <div id="inversion-tip" class="mt-2 mb-2 py-3 px-4 bg-yellow-100 border-2 border-yellow-400 text-yellow-800 text-sm rounded-lg text-center font-bold shadow-md flex justify-between items-center">
-            <span>
-                Click the <span class="text-blue-700 font-extrabold">ACTIVE</span> Roman numeral to cycle <span class="text-indigo-700">INVERSIONS</span> (Root, 1st, 
-                2nd) in Chord View.
-            </span>
-            <button onclick="toggleInversionTip(false)" class="ml-4 p-1 rounded-full bg-yellow-300 hover:bg-yellow-400 text-yellow-900 text-xs font-semibold shadow transition">
-                Hide Tip
-            </button>
+        <div class="mt-4 mb-6 py-3 px-4 bg-yellow-100 border-2 border-yellow-400 text-yellow-800 text-sm rounded-lg text-center font-bold shadow-md">
+            Click the <span class="text-blue-700 font-extrabold">ACTIVE</span> Roman numeral to cycle <span class="text-indigo-700">INVERSIONS</span> (Root, 1st, 
+            2nd) in Chord View.
         </div>
-        <button id="show-tip-btn" onclick="toggleInversionTip(true)" class="hidden mt-2 mb-2 mx-auto py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm rounded-lg font-semibold shadow transition">
-            Show Tip
-        </button>
-
 
         <div id="chord-buttons-container" class="grid grid-cols-4 sm:grid-cols-7 gap-3">
             </div>
@@ -522,9 +513,20 @@
                 duration: 'q', 
             });
             // 3. Add accidentals for notes not in the key signature.
+            // VexFlow's auto-accidental functionality makes this easy, but we need to check 
+            // the Harmonic Minor scale's raised 7th (e.g., G# in A Harmonic Minor).
+            // The logic here is tricky: VexFlow handles notes that *must* have an accidental
+            // to conform to the note name vs. key signature.
+            // E.g., in C Major (key of C),
+            // a C# must have a sharp accidental, but a C doesn't need a natural.
+            // For non-diatonic scales like Harmonic Minor, we use key signature 'C' (no sharps/flats)
+            // and must add accidentals manually for every note.
             const mode = getCurrentMode();
             if (!mode.isDiatonic || mode.intervals.length !== 7 || state.currentModeId === 'harmonic_minor') {
                  // For non-diatonic or harmonic minor, assume no key signature and add all accidentals
+                 // The easiest way is to use StaveNote's `addAccidental`.
+                // VexFlow's `key` property on StaveNote already encodes the sharp/flat. 
+                 // We just need to ensure the accidental is *drawn*.
                 vexFlowNotes.forEach((vfNote, index) => {
                     const noteParts = vfNote.split('/'); // ['c#', '4']
                     const noteName = noteParts[0];
@@ -543,6 +545,10 @@
                         }
                     }
                  });
+                // If the key is 'C', the key signature is empty, so all accidentals will show up.
+                // If a note in the list is 'c/4' and the key is 'C' (no accidentals), 
+                 // VexFlow won't add a natural.
+                // It's best to let VexFlow's context handle it.
             }
             
             
@@ -874,7 +880,7 @@
             const scaleBtn = document.getElementById('mode-scale-btn');
 
             // Classes for the ACTIVE (blue) state
-            const activeClasses = ['bg-blue-700', 'text-white', 'shadow-lg', 'ring-4', 'ring-blue-300', 'border-blue-700'];
+            const activeClasses = ['bg-blue-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-300', 'border-blue-600'];
             // Classes for the INACTIVE (gray/white) state
             const inactiveClasses = ['bg-white', 'text-gray-700', 'hover:bg-gray-200', 'border-gray-300', 'shadow-sm'];
             const updateButton = (btn, isActive) => {
@@ -1057,27 +1063,6 @@
             updateUI();
         }
         
-        // --- NEW INVERSION TIP LOGIC ---
-        
-        /**
-         * Toggles the visibility of the inversion tip and saves the preference.
-         * @param {boolean} show - If true, shows the tip; if false, hides it.
-         */
-        function toggleInversionTip(show) {
-            const tip = document.getElementById('inversion-tip');
-            const showBtn = document.getElementById('show-tip-btn');
-            
-            if (show) {
-                tip.classList.remove('hidden');
-                showBtn.classList.add('hidden');
-                localStorage.setItem('showInversionTip', 'true');
-            } else {
-                tip.classList.add('hidden');
-                showBtn.classList.remove('hidden');
-                localStorage.setItem('showInversionTip', 'false');
-            }
-        }
-        
         // --- PWA Registration (Existing functionality) ---
         function registerPwa() {
             const manifestContent = {
@@ -1116,16 +1101,6 @@
                      isWhite: MAJOR_INTERVALS.includes(i % 12),
                  });
              }
-             
-             // Check localStorage for the user's preference
-             const showTip = localStorage.getItem('showInversionTip');
-             // Default to showing the tip if no preference is found
-             if (showTip === 'false') {
-                 toggleInversionTip(false);
-             } else {
-                 toggleInversionTip(true);
-             }
-
              updateUI();
              registerPwa();
         };
