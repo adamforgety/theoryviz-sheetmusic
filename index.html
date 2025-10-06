@@ -1,745 +1,232 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TheoryViz - Sheet Music Visualizer</title>
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#3b82f6">
-
-    <!-- Load Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- IMPORTANT: VexFlow library link removed. Rendering is now done using native HTML Canvas to ensure 100% compatibility. -->
-
-    <style>
-        /* Custom styles for the Canvas container */
-        .sheet-music-container {
-            width: 100%;
-            height: 250px; /* Fixed height for the grand staff */
-            background-color: #f9fafb;
-            border-radius: 0.5rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative; 
-        }
-
-        /* Ensure Canvas fills its container */
-        #music-canvas {
-            display: block;
-            background-color: transparent;
-        }
-
-        /* Custom style for visualization buttons */
-        .viz-btn {
-            border-radius: 0.5rem;
-            transition: all 0.2s;
-            font-weight: 600;
-            padding-top: 0.625rem;
-            padding-bottom: 0.625rem;
-            border-width: 1px;
-            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Styling for the disabled state of the chord buttons */
-        .viz-btn.disabled-mode {
-            background-color: #e5e7eb !important;
-            color: #9ca3af !important;
-            border-color: #d1d5db !important;
-            cursor: not-allowed;
-            box-shadow: none !important;
-            transform: none !important;
-        }
-
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TheoryViz</title>
+  <meta name="theme-color" content="#3b82f6" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vexflow/releases/vexflow-min.js"></script>
+  <style>
+    .keyboard-container {
+      position: relative;
+      height: 250px;
+      border-radius: 0.5rem;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      background-color: #f3f4f6;
+      overflow-x: scroll;
+      overscroll-behavior: contain;
+    }
+    .keyboard-container::-webkit-scrollbar {
+      display: none;
+    }
+    .keyboard-container {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .highlight-transition {
+      transition: fill 0.2s ease;
+    }
+    .viz-btn {
+      border-radius: 0.5rem;
+      transition: all 0.2s;
+      font-weight: 600;
+      padding-top: 0.625rem;
+      padding-bottom: 0.625rem;
+      border-width: 1px;
+    }
+  </style>
 </head>
 <body class="bg-gray-50 font-sans p-4 md:p-8">
+  <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-10">
+    <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3 text-center">TheoryViz</h1>
+    <p class="text-center text-gray-600 mb-6">Visualize harmony anywhere!</p>
 
-    <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-10">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3 text-center">
-            TheoryViz
-        </h1>
-        <p class="text-center text-gray-600 mb-6">
-            Dedicated Sheet Music Visualizer
-        </p>
-
-        <!-- CONSOLIDATED CONTROL PANEL -->
-        <div class="p-4 bg-gray-100 rounded-xl mb-6 shadow-inner border border-gray-200">
-            <!-- Strict 2-column grid layout for maximum compactness -->
-            <div class="grid grid-cols-2 gap-4">
-            
-                <!-- 1. Root Key Selection (Top Left) -->
-                <div>
-                    <label for="key-select" class="block text-xs font-medium text-gray-700 mb-1">Root Key</label>
-                    <select id="key-select" onchange="handleKeyChange(event.target.value)"
-                            class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
-                        <!-- Options populated by JS -->
-                    </select>
-                </div>
-
-                <!-- 2. Mode Selection (Top Right) -->
-                <div>
-                    <label for="mode-select" class="block text-xs font-medium text-gray-700 mb-1">Scale Type</label>
-                    <select id="mode-select" onchange="handleModeChange(event.target.value)"
-                            class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
-                        <!-- Options populated by JS -->
-                    </select>
-                </div>
-
-                <!-- 3. Chord View Button (Bottom Left) -->
-                <button id="mode-chord-btn" onclick="handleVisualizationModeChange('chord')"
-                        class="viz-btn w-full text-sm md:text-base">
-                    Chord View
-                </button>
-                
-                <!-- 4. Scale View Button (Bottom Right) -->
-                <button id="mode-scale-btn" onclick="handleVisualizationModeChange('scale')"
-                        class="viz-btn w-full text-sm md:text-base">
-                    Scale View
-                </button>
-            </div>
+    <!-- Control Panel -->
+    <div class="p-4 bg-gray-100 rounded-xl mb-6 shadow-inner border border-gray-200">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label for="key-select" class="block text-xs font-medium text-gray-700 mb-1">Root Key</label>
+          <select id="key-select" class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm"></select>
         </div>
-        
-        <!-- CONSOLIDATED DISPLAY -->
-        <div id="consolidated-display" class="mb-4 py-3 px-4 bg-blue-50 text-blue-800 rounded-lg shadow-inner border border-blue-200 text-center">
-            <!-- Content populated by JS -->
+        <div>
+          <label for="mode-select" class="block text-xs font-medium text-gray-700 mb-1">Scale Type</label>
+          <select id="mode-select" class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm"></select>
         </div>
-
-        <!-- SHEET MUSIC CONTAINER (NOW CONTAINS CANVAS) -->
-        <div id="sheet-music-view" class="sheet-music-container">
-            <canvas id="music-canvas" width="600" height="250"></canvas>
-        </div>
-        
-        <!-- ENHANCED INVERSION INTERACTION TIP -->
-        <div id="inversion-tip" class="mt-4 mb-6 py-3 px-4 bg-yellow-100 border-2 border-yellow-400 text-yellow-800 text-sm rounded-lg text-center font-bold shadow-md hidden">
-            Click the <span class="text-blue-700 font-extrabold">ACTIVE</span> Roman numeral to cycle <span class="text-indigo-700">INVERSIONS</span> (Root, 1st, 2nd) in Chord View.
-        </div>
-
-        <!-- Chord Buttons (Scale Degree Selector) -->
-        <div id="chord-buttons-container" class="grid grid-cols-4 sm:grid-cols-7 gap-3">
-            <!-- Buttons will be dynamically generated here -->
-        </div>
-        
+        <button id="mode-chord-btn" class="viz-btn w-full text-sm md:text-base">Chord View</button>
+        <button id="mode-scale-btn" class="viz-btn w-full text-sm md:text-base">Scale View</button>
+      </div>
     </div>
 
-    <!-- Application Script (Now fully self-contained) -->
-    <script>
-        
-        // --- CONSTANTS AND MAPPING ---
-        const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        
-        // --- CANVAS CONSTANTS ---
-        const LINE_SPACING = 10; // Vertical distance between staff lines
-        const NOTE_RADIUS = 7;
-        const STAVE_Y_START_TREBLE = 50;
-        const STAVE_Y_START_BASS = 150;
-        const GRAND_STAFF_WIDTH = 5; // Pixels
-        
-        // MIDI Note (60=C4) to staff line Y position (relative to clef top line)
-        // Note: Y increases downwards in Canvas
-        const MIDI_TO_Y_MAP = {
-            // Treble Clef Notes (C4 = 60 to E6 = 88)
-            88: STAVE_Y_START_TREBLE + (LINE_SPACING * -4), // E6 (3rd ledger line above)
-            86: STAVE_Y_START_TREBLE + (LINE_SPACING * -3), // D6 (3rd space above)
-            84: STAVE_Y_START_TREBLE + (LINE_SPACING * -2), // C6 (2nd ledger line above)
-            83: STAVE_Y_START_TREBLE + (LINE_SPACING * -1.5), // B5 (2nd space above)
-            81: STAVE_Y_START_TREBLE + (LINE_SPACING * -0.5), // A5 (1st space above)
-            79: STAVE_Y_START_TREBLE + (LINE_SPACING * 0.5), // G5 (Top space)
-            77: STAVE_Y_START_TREBLE + (LINE_SPACING * 1.5), // F5 (4th space)
-            76: STAVE_Y_START_TREBLE + (LINE_SPACING * 2), // E5 (Top line)
-            74: STAVE_Y_START_TREBLE + (LINE_SPACING * 3), // D5 (4th line)
-            72: STAVE_Y_START_TREBLE + (LINE_SPACING * 4), // C5 (Middle line)
-            71: STAVE_Y_START_TREBLE + (LINE_SPACING * 4.5), // B4 (3rd space)
-            69: STAVE_Y_START_TREBLE + (LINE_SPACING * 5.5), // A4 (2nd space)
-            67: STAVE_Y_START_TREBLE + (LINE_SPACING * 6.5), // G4 (1st space)
-            65: STAVE_Y_START_TREBLE + (LINE_SPACING * 7.5), // F4 (Bottom space)
-            64: STAVE_Y_START_TREBLE + (LINE_SPACING * 8), // E4 (Bottom line)
-            62: STAVE_Y_START_TREBLE + (LINE_SPACING * 9), // D4 (1st space below)
-            60: STAVE_Y_START_TREBLE + (LINE_SPACING * 10), // C4 (1st ledger line below)
+    <!-- Display -->
+    <div id="consolidated-display" class="mb-4 py-3 px-4 bg-blue-50 text-blue-800 rounded-lg shadow-inner border border-blue-200 text-center"></div>
 
-            // Bass Clef Notes (B3 = 59 to C2 = 36)
-            59: STAVE_Y_START_BASS + (LINE_SPACING * 0), // B3 (Top line)
-            57: STAVE_Y_START_BASS + (LINE_SPACING * 1), // A3 (Top space)
-            55: STAVE_Y_START_BASS + (LINE_SPACING * 2), // G3 (4th line)
-            53: STAVE_Y_START_BASS + (LINE_SPACING * 3), // F3 (4th space)
-            52: STAVE_Y_START_BASS + (LINE_SPACING * 4), // E3 (Middle line)
-            50: STAVE_Y_START_BASS + (LINE_SPACING * 5), // D3 (3rd space)
-            48: STAVE_Y_START_BASS + (LINE_SPACING * 6), // C3 (2nd line)
-            47: STAVE_Y_START_BASS + (LINE_SPACING * 6.5), // B2 (2nd space)
-            45: STAVE_Y_START_BASS + (LINE_SPACING * 7.5), // A2 (1st space)
-            43: STAVE_Y_START_BASS + (LINE_SPACING * 8.5), // G2 (Bottom space)
-            41: STAVE_Y_START_BASS + (LINE_SPACING * 10), // F2 (1st ledger line below)
-        };
-        
-        // --- MUSIC THEORY DATA ---
-        const SCALE_MODES = {
-            'major': {
-                name: 'Ionian (Major)',
-                intervals: [0, 2, 4, 5, 7, 9, 11],
-                triadQualities: ["Maj", "min", "min", "Maj", "Maj", "min", "dim", "Maj"], 
-                qualities: ["I", "ii", "iii", "IV", "V", "vi", "vii°", "VIII (I)"], 
-                chordSteps: [0, 2, 4], 
-                degrees: 8, 
-                isDiatonic: true,
-            },
-            'natural_minor': {
-                name: 'Aeolian (Natural Minor)',
-                intervals: [0, 2, 3, 5, 7, 8, 10],
-                triadQualities: ["min", "dim", "Maj", "min", "min", "Maj", "Maj", "min"],
-                qualities: ["i", "ii°", "III", "iv", "v", "VI", "VII", "viii (i)"],
-                chordSteps: [0, 2, 4],
-                degrees: 8,
-                isDiatonic: true,
-            },
-            'harmonic_minor': {
-                name: 'Harmonic Minor',
-                intervals: [0, 2, 3, 5, 7, 8, 11], 
-                triadQualities: ["min", "dim", "Aug", "min", "Maj", "Maj", "dim", "min"], 
-                qualities: ["i", "ii°", "III+", "iv", "V", "VI", "vii°", "viii (i)"],
-                chordSteps: [0, 2, 4],
-                degrees: 8,
-                isDiatonic: true,
-            },
-            'major_pentatonic': {
-                name: 'Major Pentatonic',
-                intervals: [0, 2, 4, 7, 9],
-                triadQualities: ["", "", "", "", ""], 
-                qualities: ["1", "2", "3", "4", "5"], 
-                chordSteps: [0], 
-                degrees: 5,
-                isDiatonic: false
-            },
-            'minor_pentatonic': {
-                name: 'Minor Pentatonic',
-                intervals: [0, 3, 5, 7, 10],
-                triadQualities: ["", "", "", "", ""],
-                qualities: ["1", "2", "3", "4", "5"], 
-                chordSteps: [0],
-                degrees: 5,
-                isDiatonic: false
-            }
-        };
+    <!-- Piano Keyboard -->
+    <div id="piano-container" class="keyboard-container overflow-x-scroll pb-4 mt-4">
+      <svg id="piano-keyboard-svg" width="100%" height="200"></svg>
+    </div>
 
-        // --- STATE ---
-        let state = {
-            currentKeyIndex: 0, 
-            currentModeId: 'major', 
-            currentDegree: 1, 
-            currentInversion: 0, 
-            visualizationMode: 'chord', 
-        };
-        
-        let canvas, ctx; 
-        
-        // --- CORE MUSIC THEORY LOGIC ---
-        
-        function getCurrentMode() {
-            return SCALE_MODES[state.currentModeId];
-        }
+    <!-- Sheet Music Viewer -->
+    <div id="sheet-music-container" class="mt-6 p-4 bg-white rounded-lg shadow-md">
+      <h2 class="text-lg font-bold text-gray-700 mb-2">Sheet Music View</h2>
+      <div id="sheet-music-renderer"></div>
+    </div>
+  </div>
+Awesome, Adam — here’s **Part 2** of your complete TheoryViz + Sheet Music Viewer app. This includes all the JavaScript logic: state management, keyboard rendering, scale/chord selection, inversion handling, and the new sheet music rendering with VexFlow.
 
-        function calculateChordMidiNotes(keyIndex, degree, inversion) {
-            const mode = getCurrentMode();
-            const scaleIntervals = mode.intervals;
-            
-            const octaveShift = (degree === 8) ? 12 : 0;
-            const scaleDegreeIndex = (degree === 8) ? 0 : degree - 1; 
+---
 
-            // Start from C4 (MIDI 60) + Key Offset
-            const tonicMidi = 60 + keyIndex; 
+### 📦 Part 2: JavaScript Logic (Place inside `<script>` tags at the end of your HTML)
 
-            // Handle scale view or non-triad scales
-            if (!mode.isDiatonic || mode.intervals.length < 7 || state.visualizationMode === 'scale') {
-                let intervalOffset = scaleIntervals[scaleDegreeIndex];
-                return [tonicMidi + intervalOffset + octaveShift];
-            }
-            
-            // Handle chord view for diatonic scales
-            const stepsInChord = mode.chordSteps; 
-            let chordMidi = [];
+```html
+<script>
+  const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
+  const SCALE_MODES = {
+    major: {
+      name: "Ionian (Major)",
+      intervals: [0, 2, 4, 5, 7, 9, 11],
+      chordSteps: [0, 2, 4],
+      isDiatonic: true
+    }
+  };
+  const START_MIDI = 60;
+  const END_MIDI = 84;
 
-            for (let step of stepsInChord) {
-                const index = (scaleDegreeIndex + step) % scaleIntervals.length;
-                let interval = scaleIntervals[index]; 
-                
-                chordMidi.push(tonicMidi + interval + octaveShift);
-            }
-            
-            // Apply Inversion logic
-            if (degree <= 7) {
-                for (let i = 0; i < inversion; i++) {
-                    const lowestNote = chordMidi.shift(); 
-                    chordMidi.push(lowestNote + 12);     
-                }
-            }
-            
-            // Filter to display notes in the range (approx C2=36 to E6=88 for grand staff visibility)
-            return chordMidi.filter(midi => MIDI_TO_Y_MAP[midi] !== undefined); 
-        }
+  const state = {
+    currentKeyIndex: 0,
+    currentModeId: "major",
+    currentDegree: 1,
+    currentInversion: 0,
+    highlightedMidiNotes: [],
+    visualizationMode: "chord"
+  };
 
-        // --- CANVAS RENDERING (Custom Implementation) ---
+  function midiToVexflowNote(midi) {
+    const noteNames = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];
+    const pitchClass = midi % 12;
+    const octave = Math.floor(midi / 12) - 1;
+    return noteNames[pitchClass] + "/" + octave;
+  }
 
-        function drawStaff(ctx, x, y, width) {
-            ctx.beginPath();
-            for (let i = 0; i < 5; i++) {
-                const lineY = y + i * LINE_SPACING;
-                ctx.moveTo(x, lineY);
-                ctx.lineTo(x + width, lineY);
-            }
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = '#333';
-            ctx.stroke();
-        }
+  function renderSheetMusic(midiNotes) {
+    const VF = Vex.Flow;
+    const container = document.getElementById("sheet-music-renderer");
+    container.innerHTML = "";
 
-        function drawClef(ctx, clefType, x, y) {
-            ctx.fillStyle = '#333';
-            // Use a music font for a basic representation, or fall back to a large letter
-            ctx.font = '70px serif'; 
+    const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
+    renderer.resize(500, 200);
+    const context = renderer.getContext();
+    const stave = new VF.Stave(10, 40, 400);
+    stave.addClef("treble").setContext(context).draw();
 
-            if (clefType === 'treble') {
-                // Approximate G-Clef (Treble) position
-                ctx.fillText('𝄞', x + 5, y + 40); 
-                // Fallback to G if music font fails:
-                // ctx.fillText('G', x + 10, y + 40); 
-            } else if (clefType === 'bass') {
-                // Approximate F-Clef (Bass) position
-                ctx.fillText('𝄢', x + 5, y + 40);
-                // Fallback to F if music font fails:
-                // ctx.fillText('F', x + 10, y + 40); 
-            }
-        }
-        
-        function drawNotes(ctx, x, notesMidi) {
-            const numNotes = notesMidi.length;
-            const noteColor = '#C20000'; // Highlight color for emphasis
-            
-            notesMidi.forEach((midi, index) => {
-                const noteName = NOTE_NAMES[midi % 12];
-                const noteOctave = Math.floor(midi / 12);
-                const y = MIDI_TO_Y_MAP[midi];
-                
-                if (y === undefined) return; 
+    const keys = midiNotes.map(midi => midiToVexflowNote(midi));
+    const duration = midiNotes.length > 1 ? "q" : "w";
+    const note = new VF.StaveNote({ clef: "treble", keys, duration });
 
-                // Note head
-                ctx.beginPath();
-                // x position is fixed for all notes in a chord
-                const noteX = x + 100; 
-                ctx.ellipse(noteX, y, NOTE_RADIUS, NOTE_RADIUS * 0.8, -0.1, 0, 2 * Math.PI);
-                ctx.fillStyle = noteColor;
-                ctx.fill();
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                ctx.stroke();
+    keys.forEach((key, i) => {
+      if (key.includes("#")) {
+        note.addAccidental(i, new VF.Accidental("#"));
+      }
+    });
 
-                // Stem (draw only if it's the highest or lowest note of the chord)
-                if (numNotes === 1 || midi === Math.min(...notesMidi) || midi === Math.max(...notesMidi)) {
-                    const stemLength = 30;
-                    ctx.beginPath();
-                    // Stem direction depends on whether it's above or below the middle line (B4/D3)
-                    const isHighNote = y <= (STAVE_Y_START_TREBLE + 40);
-                    const stemDirection = isHighNote ? -1 : 1;
-                    
-                    const stemX = noteX + (stemDirection * NOTE_RADIUS * 0.5);
-                    const stemYStart = y;
-                    const stemYEnd = y + (stemDirection * stemLength);
+    const voice = new VF.Voice({ num_beats: 4, beat_value: 4 });
+    voice.addTickables([note]);
+    new VF.Formatter().joinVoices([voice]).format([voice], 350);
+    voice.draw(context, stave);
+  }
 
-                    ctx.moveTo(stemX, stemYStart);
-                    ctx.lineTo(stemX, stemYEnd);
-                    ctx.lineWidth = 1.5;
-                    ctx.strokeStyle = noteColor;
-                    ctx.stroke();
-                }
+  function calculateChordMidiNotes(keyIndex, degree, inversion) {
+    const mode = SCALE_MODES[state.currentModeId];
+    const scaleIntervals = mode.intervals;
+    const scaleDegreeIndex = degree - 1;
+    const tonicMidi = 60 + keyIndex;
+    const rootInterval = scaleIntervals[scaleDegreeIndex];
+    const rootMidi = tonicMidi + rootInterval;
 
-                // Ledger Lines (for notes outside the 5 main lines)
-                const isTreble = y < STAVE_Y_START_BASS;
-                const topLineY = isTreble ? STAVE_Y_START_TREBLE : STAVE_Y_START_BASS;
-                const bottomLineY = topLineY + 4 * LINE_SPACING;
+    const thirdIndex = (scaleDegreeIndex + mode.chordSteps[1]) % scaleIntervals.length;
+    const fifthIndex = (scaleDegreeIndex + mode.chordSteps[2]) % scaleIntervals.length;
 
-                if (y < topLineY || y > bottomLineY) {
-                    let ledgerY = y;
-                    
-                    // Center the ledger line on the note head
-                    if ((ledgerY - topLineY) % LINE_SPACING !== 0) {
-                         // Adjust to the nearest line (for notes in spaces)
-                         ledgerY = Math.round(ledgerY / LINE_SPACING) * LINE_SPACING;
-                    }
+    let thirdOffset = scaleIntervals[thirdIndex] - scaleIntervals[scaleDegreeIndex];
+    if (thirdOffset < 0) thirdOffset += 12;
+    let fifthOffset = scaleIntervals[fifthIndex] - scaleIntervals[scaleDegreeIndex];
+    if (fifthOffset < 0) fifthOffset += 12;
 
-                    ctx.strokeStyle = '#333';
-                    ctx.lineWidth = 1;
+    let chord = [rootMidi, rootMidi + thirdOffset, rootMidi + fifthOffset];
+    for (let i = 0; i < inversion; i++) {
+      const note = chord.shift();
+      chord.push(note + 12);
+    }
+    return chord.filter(midi => midi >= START_MIDI && midi <= END_MIDI);
+  }
 
-                    // Draw ledger line
-                    ctx.beginPath();
-                    ctx.moveTo(noteX - 10, ledgerY);
-                    ctx.lineTo(noteX + 10, ledgerY);
-                    ctx.stroke();
-                }
+  function drawKeyboard() {
+    const svg = document.getElementById("piano-keyboard-svg");
+    svg.innerHTML = "";
+    const highlighted = state.highlightedMidiNotes;
 
-                // Accidentals (Simplified: only draw if flat/sharp in the name)
-                if (noteName.includes('#') || noteName.includes('b')) {
-                    const accidental = noteName.includes('#') ? '#' : 'b';
-                    ctx.font = '24px Arial';
-                    ctx.fillStyle = noteColor;
-                    ctx.fillText(accidental, noteX - 30, y + 8); 
-                }
-            });
-        }
+    for (let midi = START_MIDI; midi <= END_MIDI; midi++) {
+      const pitchClass = midi % 12;
+      const isWhite = MAJOR_INTERVALS.includes(pitchClass);
+      const x = (midi - START_MIDI) * 30;
+      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute("x", x);
+      rect.setAttribute("y", 10);
+      rect.setAttribute("width", 28);
+      rect.setAttribute("height", isWhite ? 180 : 110);
+      rect.setAttribute("fill", highlighted.includes(midi) ? "#3b82f6" : isWhite ? "#fff" : "#1f2937");
+      rect.setAttribute("stroke", "#000");
+      svg.appendChild(rect);
+    }
 
+    renderSheetMusic(state.highlightedMidiNotes);
+  }
 
-        function renderSheetMusic() {
-            const container = document.getElementById('sheet-music-view');
-            canvas = document.getElementById('music-canvas');
-            ctx = canvas.getContext('2d');
+  function updateVisualization() {
+    state.highlightedMidiNotes = calculateChordMidiNotes(state.currentKeyIndex, state.currentDegree, state.currentInversion);
+    drawKeyboard();
+  }
 
-            const containerRect = container.getBoundingClientRect();
-            // Set canvas size to container size for responsiveness
-            const width = Math.max(containerRect.width, 300); 
-            const height = 250; 
-            
-            canvas.width = width;
-            canvas.height = height;
+  function populateSelectors() {
+    const keySelect = document.getElementById("key-select");
+    KEYS.forEach((key, i) => {
+      const option = document.createElement("option");
+      option.value = i;
+      option.textContent = key;
+      keySelect.appendChild(option);
+    });
+    keySelect.value = state.currentKeyIndex;
+    keySelect.addEventListener("change", e => {
+      state.currentKeyIndex = parseInt(e.target.value);
+      updateVisualization();
+    });
 
-            // Clear the canvas
-            ctx.clearRect(0, 0, width, height);
-            
-            const notes = calculateChordMidiNotes(state.currentKeyIndex, state.currentDegree, state.currentInversion);
-            
-            if (notes.length === 0) {
-                 ctx.fillStyle = '#9ca3af';
-                 ctx.font = '16px sans-serif';
-                 ctx.textAlign = 'center';
-                 ctx.fillText("No notes in the display range.", width / 2, height / 2);
-                 return;
-            }
+    const modeSelect = document.getElementById("mode-select");
+    Object.entries(SCALE_MODES).forEach(([id, mode]) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = mode.name;
+      modeSelect.appendChild(option);
+    });
+    modeSelect.value = state.currentModeId;
+    modeSelect.addEventListener("change", e => {
+      state.currentModeId = e.target.value;
+      updateVisualization();
+    });
 
-            const staffX = 50;
-            const staffWidth = width - staffX - 20;
+    document.getElementById("mode-chord-btn").addEventListener("click", () => {
+      state.visualizationMode = "chord";
+      updateVisualization();
+    });
 
-            // 1. Draw Staves
-            drawStaff(ctx, staffX, STAVE_Y_START_TREBLE, staffWidth);
-            drawStaff(ctx, staffX, STAVE_Y_START_BASS, staffWidth);
+    document.getElementById("mode-scale-btn").addEventListener("click", () => {
+      state.visualizationMode = "scale";
+      updateVisualization();
+    });
+  }
 
-            // 2. Draw Clefs
-            drawClef(ctx, 'treble', staffX, STAVE_Y_START_TREBLE);
-            drawClef(ctx, 'bass', staffX, STAVE_Y_START_BASS);
-            
-            // 3. Draw Grand Staff connector (brace)
-            ctx.beginPath();
-            ctx.moveTo(staffX - GRAND_STAFF_WIDTH, STAVE_Y_START_TREBLE);
-            ctx.lineTo(staffX + 5, STAVE_Y_START_TREBLE);
-            ctx.lineTo(staffX + 5, STAVE_Y_START_BASS + 4 * LINE_SPACING);
-            ctx.lineTo(staffX - GRAND_STAFF_WIDTH, STAVE_Y_START_BASS + 4 * LINE_SPACING);
-            ctx.lineWidth = GRAND_STAFF_WIDTH;
-            ctx.strokeStyle = '#333';
-            ctx.stroke();
-            
-            // 4. Draw Notes
-            drawNotes(ctx, staffX, notes);
-        }
-        
-        // --- HANDLERS (EXPOSED GLOBALLY) ---
-        
-        let resizeTimer;
-        function debouncedRenderSheetMusic() {
-            clearTimeout(resizeTimer);
-            // Wait for dimensions to settle after resize
-            resizeTimer = setTimeout(renderSheetMusic, 150);
-        }
-        
-        // Expose functions globally for HTML event handlers (onclick, onchange)
-        window.handleKeyChange = (keyIndex) => {
-            state.currentKeyIndex = parseInt(keyIndex);
-            state.currentDegree = 1; 
-            state.currentInversion = 0; 
-            updateUI();
-        }
-
-        window.handleModeChange = (modeId) => {
-            state.currentModeId = modeId;
-            state.currentDegree = 1; 
-            state.currentInversion = 0; 
-            updateUI();
-        }
-        
-        window.handleDegreeChange = (degree) => {
-            const mode = getCurrentMode();
-            
-            const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord' && degree <= 7;
-
-            if (degree === state.currentDegree) {
-                if (canInvert) {
-                    state.currentInversion = (state.currentInversion + 1) % 3; 
-                } else {
-                    state.currentInversion = 0;
-                }
-            } else {
-                state.currentDegree = degree;
-                state.currentInversion = 0; 
-            }
-            updateUI();
-        }
-
-        window.handleVisualizationModeChange = (mode) => {
-            state.visualizationMode = mode;
-            state.currentInversion = 0; 
-            updateUI();
-        }
-
-        // --- UI Update Logic ---
-        
-        function getSimplifiedKeyName() {
-            const rootName = KEYS[state.currentKeyIndex];
-            const modeName = getCurrentMode().name;
-            return `Key of ${rootName} - ${modeName}`;
-        }
-
-        function getDetailedHighlightName() {
-            const mode = getCurrentMode();
-            const intervals = mode.intervals;
-            const degree = state.currentDegree;
-
-            const scaleDegreeIndex = (degree === 8) ? 0 : degree - 1;
-            const degreeInterval = intervals[scaleDegreeIndex]; 
-            
-            const highlightRootIndex = (state.currentKeyIndex + degreeInterval) % 12;
-            const highlightRootName = KEYS[highlightRootIndex]; 
-            
-            const degreeIndex = (degree === 8) ? 0 : degree - 1;
-
-            if (state.visualizationMode === 'chord' && mode.isDiatonic && mode.intervals.length === 7) {
-                const romanNumeral = mode.qualities[degreeIndex];
-                const quality = mode.triadQualities[degreeIndex];
-                
-                let inversionText = 'Root Position';
-                if (state.currentInversion === 1) {
-                    inversionText = '1st Inversion / 6';
-                } else if (state.currentInversion === 2) {
-                    inversionText = '2nd Inversion / 6/4';
-                }
-
-                return `Selected: ${highlightRootName}${quality} (${romanNumeral}) (${inversionText})`;
-            } else {
-                let degreeText;
-                if (degree === 1) {
-                    degreeText = '1st';
-                } else if (degree === 2) {
-                    degreeText = '2nd';
-                } else if (degree === 3) {
-                    degreeText = '3rd';
-                } else if (degree === 8) {
-                    degreeText = 'Octave (8th)';
-                } else {
-                    degreeText = `${degree}th`;
-                }
-                
-                return `Selected: ${highlightRootName} (${degreeText})`;
-            }
-        }
-        
-        function updateUI() {
-            renderModeSelect(); 
-
-            const mode = getCurrentMode();
-            
-            if (state.currentDegree > mode.degrees) {
-                state.currentDegree = 1;
-            }
-            
-            const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord' && state.currentDegree !== 8;
-            
-            if (!canInvert) {
-                state.currentInversion = 0;
-                document.getElementById('inversion-tip').classList.add('hidden');
-            } else {
-                 document.getElementById('inversion-tip').classList.remove('hidden');
-            }
-
-            renderKeySelect();
-            renderChordButtons();
-            renderConsolidatedDisplay(); 
-            renderVisualizationModeButtons(); 
-            
-            // Render using the new Canvas implementation
-            renderSheetMusic(); 
-        }
-
-        function renderKeySelect() {
-            const select = document.getElementById('key-select');
-            select.innerHTML = KEYS.map((key, index) => 
-                `<option value="${index}" ${index === state.currentKeyIndex ? 'selected' : ''}>${key}</option>`
-            ).join('');
-        }
-        
-        function renderModeSelect() {
-            const select = document.getElementById('mode-select');
-            const allModes = Object.entries(SCALE_MODES);
-            
-            let modesToRender = allModes;
-            let currentModeExists = true;
-            
-            // If in Chord View, only show Diatonic scales
-            if (state.visualizationMode === 'chord') {
-                modesToRender = allModes.filter(([id, mode]) => 
-                    mode.isDiatonic && mode.intervals.length === 7
-                );
-                
-                currentModeExists = modesToRender.some(([id]) => id === state.currentModeId);
-                if (!currentModeExists) {
-                     state.currentModeId = 'major';
-                     state.currentDegree = 1; 
-                }
-            }
-            
-            select.innerHTML = modesToRender.map(([id, mode]) => 
-                `<option value="${id}" ${id === state.currentModeId ? 'selected' : ''}>${mode.name}</option>`
-            ).join('');
-        }
-        
-        function renderVisualizationModeButtons() {
-            const isChord = state.visualizationMode === 'chord';
-            const chordBtn = document.getElementById('mode-chord-btn');
-            const scaleBtn = document.getElementById('mode-scale-btn');
-            const mode = getCurrentMode();
-            
-            const isChordModeSupported = mode.isDiatonic && mode.intervals.length === 7;
-
-            const activeClasses = ['bg-blue-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-300', 'border-blue-600'];
-            const inactiveClasses = ['bg-white', 'text-gray-700', 'hover:bg-gray-200', 'border-gray-300', 'shadow-sm'];
-
-            const updateButton = (btn, isActive, isDisabled) => {
-                if (!btn) return;
-                
-                activeClasses.forEach(cls => btn.classList.toggle(cls, isActive && !isDisabled));
-                inactiveClasses.forEach(cls => btn.classList.toggle(cls, !isActive && !isDisabled));
-                
-                btn.disabled = isDisabled;
-                btn.classList.toggle('disabled-mode', isDisabled);
-            };
-            
-            updateButton(chordBtn, isChord, !isChordModeSupported);
-            updateButton(scaleBtn, !isChord, false);
-
-            if (isChord && !isChordModeSupported) {
-                // Auto-switch to scale view if the current scale doesn't support chord visualization
-                state.visualizationMode = 'scale';
-                setTimeout(updateUI, 0); 
-            }
-        }
-
-        function renderChordButtons() {
-            const container = document.getElementById('chord-buttons-container');
-            const mode = getCurrentMode();
-            const qualities = mode.qualities;
-            const triadQualities = mode.triadQualities;
-            
-            const numDegrees = mode.degrees; 
-            const isScaleView = state.visualizationMode === 'scale';
-            
-            const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord';
-
-            // Adjust grid layout based on number of degrees 
-            container.classList.remove('sm:grid-cols-5', 'sm:grid-cols-7', 'sm:grid-cols-8');
-            container.classList.add(numDegrees === 8 ? 'sm:grid-cols-8' : 'sm:grid-cols-5');
-
-
-            container.innerHTML = mode.qualities.slice(0, numDegrees).map((romanNumeral, index) => {
-                const degree = index + 1;
-                const isActive = degree === state.currentDegree;
-                
-                const qualityIndex = index; 
-                const isInvrted = isActive && state.currentInversion > 0; 
-
-                let inversionSuffix = '';
-                let qualityDisplay = '';
-                let mainButtonText = '';
-                let secondaryButtonText = '';
-                
-                if (isScaleView) {
-                    mainButtonText = romanNumeral; 
-                } else {
-                    mainButtonText = romanNumeral;
-                    qualityDisplay = canInvert ? triadQualities[qualityIndex] : '';
-                    
-                    if (isActive && degree <= 7 && canInvert && state.currentInversion > 0) {
-                         inversionSuffix = state.currentInversion === 1 ? ' / 6' : ' / 6/4';
-                    }
-                    secondaryButtonText = `${qualityDisplay}${inversionSuffix}`;
-                }
-                
-                let buttonClasses = 'bg-gray-100 text-gray-700 hover:bg-gray-300 shadow-sm border border-gray-300';
-
-                // Apply active state styling
-                if (isActive && !isInvrted) {
-                    buttonClasses = 'bg-blue-700 text-white ring-4 ring-blue-300 transform scale-105 shadow-xl border-blue-700';
-                } else if (isInvrted) {
-                    buttonClasses = 'bg-indigo-600 text-white ring-4 ring-yellow-400 transform scale-105 shadow-2xl border-white';
-                }
-
-
-                return `
-                    <button onclick="handleDegreeChange(${degree})"
-                            class="py-3 px-2 rounded-lg font-extrabold transition duration-200 
-                            flex flex-col items-center justify-center min-h-20
-                            ${buttonClasses}"> 
-                        <span class="text-xl">${mainButtonText}</span>
-                        <span class="text-xs font-medium opacity-80">${secondaryButtonText}</span>
-                    </button>
-                `;
-            }).join('');
-        }
-
-        function renderConsolidatedDisplay() {
-            const display = document.getElementById('consolidated-display');
-            const detailedText = getDetailedHighlightName();
-            const keyModeText = getSimplifiedKeyName();
-
-            display.innerHTML = `
-                <p class="text-lg font-bold">${detailedText}</p>
-                <p class="text-sm font-medium opacity-90 mt-1">${keyModeText}</p>
-            `;
-        }
-        
-        // --- PWA Registration ---
-        function registerPwa() {
-            const manifestContent = {
-                "name": "TheoryViz - Sheet Music",
-                "short_name": "TVSM",
-                "start_url": ".",
-                "display": "standalone",
-                "background_color": "#ffffff",
-                "theme_color": "#3b82f6",
-                "icons": [
-                    {"src": "https://placehold.co/192x192/3b82f6/ffffff?text=SM", "sizes": "192x192", "type": "image/png"},
-                    {"src": "https://placehold.co/512x512/3b82f6/ffffff?text=SM", "sizes": "512x512", "type": "image/png"}
-                ]
-            };
-
-            const manifestBlob = new Blob([JSON.stringify(manifestContent)], {type : 'application/json'});
-            const manifestUrl = URL.createObjectURL(manifestBlob);
-            
-            const link = document.createElement('link');
-            link.rel = 'manifest';
-            link.href = manifestUrl;
-            document.head.appendChild(link);
-        }
-        
-        // --- APPLICATION STARTUP ---
-
-        function initApp() {
-             // We no longer check for VexFlow (VF). Initialization is guaranteed.
-             console.log("Application initialized using native HTML Canvas rendering.");
-             
-             updateUI();
-             
-             window.addEventListener('resize', debouncedRenderSheetMusic); 
-             registerPwa();
-        }
-
-        // Start the main application once the document is fully loaded
-        window.addEventListener('DOMContentLoaded', initApp);
-        
-    </script>
+  populateSelectors();
+  updateVisualization();
+</script>
 </body>
 </html>
