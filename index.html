@@ -525,15 +525,28 @@
             const width = containerTreble.offsetWidth > 450 ? 450 : containerTreble.offsetWidth;
             const height = 140; 
             
-            // 1. Get the VexFlow note strings (e.g., ['c/4', 'e/4', 'g/4'])
-            const vexFlowNotes = state.highlightedMidiNotes.map(getVexFlowNoteString);
+            // 1. NOTES FOR TREBLE CLEF (Original octave)
+            const trebleClefVexFlowNotes = state.highlightedMidiNotes.map(getVexFlowNoteString);
+            
+            // 2. NOTES FOR BASS CLEF (Down one octave)
+            const bassClefMidiNotes = state.highlightedMidiNotes
+                .map(midi => midi - 12); // Transpose down one octave
+            const bassClefVexFlowNotes = bassClefMidiNotes.map(getVexFlowNoteString);
+
             const keySig = getVexFlowKeySignature();
             
-            // Determine if we need to manually add accidentals (for non-diatonic scales or C key signature)
+            // Determine if we need to manually add accidentals
             const isNonDiatonicOrCKey = !getCurrentMode().isDiatonic || getCurrentMode().intervals.length !== 7 || state.currentModeId === 'harmonic_minor' || keySig === 'C';
             
             // --- Helper function to draw a single staff ---
-            const drawStaff = (container, clef) => {
+            const drawStaff = (container, clef, vfNotes) => {
+                
+                if (vfNotes.length === 0) {
+                     // Display a message if no notes are left after transposition/filtering
+                     container.innerHTML = `<p class="text-center text-gray-500 py-4">Notes are too low to display in the ${clef} staff's target octave.</p>`;
+                     return;
+                }
+
                 const renderer = new Renderer(container, Renderer.Backends.SVG);
                 renderer.resize(width, height);
                 const context = renderer.getContext();
@@ -552,15 +565,14 @@
 
                 // --- Note Setup ---
                 const note = new StaveNote({
-                    keys: vexFlowNotes,
+                    keys: vfNotes, // Use the passed-in VexFlow notes
                     duration: 'q', 
-                    // Set the clef context for correct note head placement
                     clef: clef 
                 });
                 
                 // Add accidentals if necessary
                 if (isNonDiatonicOrCKey) {
-                    vexFlowNotes.forEach((vfNote, index) => {
+                    vfNotes.forEach((vfNote, index) => {
                         const noteParts = vfNote.split('/'); 
                         const noteName = noteParts[0];
                         let accidentalType = '';
@@ -589,15 +601,15 @@
                 voice.draw(context, stave);
             };
 
-            // 1. Draw Treble Staff
-            drawStaff(containerTreble, 'treble');
+            // 1. Draw Treble Staff (using original notes)
+            drawStaff(containerTreble, 'treble', trebleClefVexFlowNotes);
             
-            // 2. Draw Bass Staff
-            drawStaff(containerBass, 'bass');
+            // 2. Draw Bass Staff (using transposed notes)
+            drawStaff(containerBass, 'bass', bassClefVexFlowNotes);
         }
 
-        // --- KEYBOARD RENDERING HELPERS ---
-
+        // --- KEYBOARD RENDERING HELPERS (Rest of the file is unchanged) ---
+        
         /**
          * Returns the correctly spelled note name (sharp or flat) for a MIDI note/pitch class,
          * based on the root key currently selected.
