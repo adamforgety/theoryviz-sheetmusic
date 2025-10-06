@@ -4,14 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TheoryViz</title>
-    <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#3b82f6">
-    <!-- The manifest link will be dynamically created by JS later -->
-
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Load VexFlow for Sheet Music Rendering (New) -->
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.0.3/build/cjs/vexflow.js"></script>
     
     <style>
@@ -75,38 +70,28 @@
             Visualize harmony anywhere!
         </p>
 
-        <!-- CONSOLIDATED CONTROL PANEL (Two-Column Grid Layout) -->
         <div class="p-4 bg-gray-100 rounded-xl mb-6 shadow-inner border border-gray-200">
-            <!-- Strict 2-column grid layout for maximum compactness -->
             <div class="grid grid-cols-2 gap-4">
             
-                <!-- 1. Root Key Selection (Top Left) -->
                 <div>
                     <label for="key-select" class="block text-xs font-medium text-gray-700 mb-1">Root Key</label>
                     <select id="key-select" onchange="handleKeyChange(event.target.value)"
                             class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
-                        <!-- Options populated by JS -->
-                    </select>
+                        </select>
                 </div>
 
-                <!-- 2. Mode Selection (Top Right) -->
                 <div>
                     <label for="mode-select" class="block text-xs font-medium text-gray-700 mb-1">Scale Type</label>
                     <select id="mode-select" onchange="handleModeChange(event.target.value)"
                             class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
-                        <!-- Options populated by JS -->
-                    </select>
+                        </select>
                 </div>
 
-                <!-- 3. Chord View Button (Bottom Left) -->
-                <!-- Classes are managed by JS for active/inactive state -->
                 <button id="mode-chord-btn" onclick="handleVisualizationModeChange('chord')"
                         class="viz-btn w-full text-sm md:text-base">
                     Chord View
                 </button>
                 
-                <!-- 4. Scale View Button (Bottom Right) -->
-                <!-- Classes are managed by JS for active/inactive state -->
                 <button id="mode-scale-btn" onclick="handleVisualizationModeChange('scale')"
                         class="viz-btn w-full text-sm md:text-base">
                     Scale View
@@ -114,40 +99,31 @@
             </div>
         </div>
         
-        <!-- CONSOLIDATED DISPLAY -->
-        <div id="consolidated-display" class="mb-4 py-3 px-4 bg-blue-50 text-blue-800 rounded-lg shadow-inner border border-blue-200 text-center">
-            <!-- Content populated by JS: 
-                 <p class="text-lg font-bold">Selected: C Maj (I) (Root Position)</p>
-                 <p class="text-sm font-medium opacity-90">Key of C - Ionian (Major)</p>
-            -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            
+            <div id="consolidated-display" class="py-3 px-4 bg-blue-50 text-blue-800 rounded-lg shadow-inner border border-blue-200 text-center">
+                </div>
+            
+            <div id="sheet-music-container" class="p-4 bg-gray-100 border border-gray-300 rounded-xl shadow-inner">
+                <h2 class="text-xl font-bold text-gray-800 mb-3 border-b pb-2">Musical Staff</h2>
+                <div id="staff-display" class="w-full overflow-x-scroll">
+                    </div>
+            </div>
+
         </div>
         
-        <!-- Sheet Music Container (NEW) -->
-        <div id="sheet-music-container" class="mt-6 p-4 bg-gray-100 border border-gray-300 rounded-xl shadow-inner">
-            <h2 class="text-xl font-bold text-gray-800 mb-3 border-b pb-2">Musical Staff</h2>
-            <div id="staff-display" class="w-full overflow-x-scroll">
-                <!-- VexFlow Renderer will attach here -->
-            </div>
-        </div>
-
-        <!-- Piano Keyboard Container (Handles Scrolling for both steps and keys) -->
         <div id="piano-container" class="keyboard-container overflow-x-scroll pb-4 mt-4">
-            <!-- New track for whole/half step visualization. It must have the exact width of the SVG to scroll correctly. -->
             <div id="step-visualizer-track" style="width: 1320px; position: relative; height: 30px;" class="mt-1 mb-1">
-                <!-- Step indicators will be absolutely positioned here by JS -->
-            </div>
+                </div>
             <svg id="piano-keyboard-svg" width="100%" height="200" preserveAspectRatio="xMinYMin slice"></svg>
         </div>
         
-        <!-- ENHANCED INVERSION INTERACTION TIP -->
         <div class="mt-4 mb-6 py-3 px-4 bg-yellow-100 border-2 border-yellow-400 text-yellow-800 text-sm rounded-lg text-center font-bold shadow-md">
             Click the <span class="text-blue-700 font-extrabold">ACTIVE</span> Roman numeral to cycle <span class="text-indigo-700">INVERSIONS</span> (Root, 1st, 2nd) in Chord View.
         </div>
 
-        <!-- Chord Buttons (Scale Degree Selector) -->
         <div id="chord-buttons-container" class="grid grid-cols-4 sm:grid-cols-7 gap-3">
-            <!-- Buttons will be dynamically generated here -->
-        </div>
+            </div>
         
     </div>
 
@@ -481,6 +457,7 @@
             }
             
             // --- VexFlow Setup ---
+            // Set max width to 450px to ensure it looks good even when in a 50% column on large screens
             const width = container.offsetWidth > 450 ? 450 : container.offsetWidth;
             const height = 140;
             
