@@ -354,13 +354,12 @@
             const scaleDegreeIndex = (degree === 8) ? 0 : degree - 1; 
 
             // --- Determine the base MIDI for the Tonic (Root Key) of the scale ---
+            // New Centering Logic: Targets C4 (MIDI 60) to B4 (MIDI 71) range for the root note.
             let tonicMidi;
-            // Keys C, C#, D, D# (PC 0-3) start in the 4th octave (MIDI 60-63).
-            if (keyIndex >= 0 && keyIndex <= 3) { 
-                tonicMidi = 60 + keyIndex; 
-            } else { 
-                // Keys E, F, F#, G, G#, A, A#, B (PC 4-11) start in the 3rd octave (MIDI 52-59).
-                tonicMidi = 52 + (keyIndex - 4); 
+            if (keyIndex >= 0 && keyIndex <= 6) { // C (0) to F# (6)
+                tonicMidi = 60 + keyIndex; // C4 (60) to F#4 (66)
+            } else { // G (7) to B (11)
+                tonicMidi = 48 + keyIndex; // G3 (55) to B3 (59)
             }
             // --- END UPDATED LOGIC ---
 
@@ -424,13 +423,12 @@
             }
 
             // --- Determine the base MIDI for the Tonic (Root Key) of the scale ---
+            // New Centering Logic: Targets C4 (MIDI 60) to B4 (MIDI 71) range for the root note.
             let tonicMidi;
-            // Keys C, C#, D, D# (PC 0-3) start in the 4th octave (MIDI 60-63).
-            if (keyIndex >= 0 && keyIndex <= 3) { 
-                tonicMidi = 60 + keyIndex; 
-            } else { 
-                // Keys E, F, F#, G, G#, A, A#, B (PC 4-11) start in the 3rd octave (MIDI 52-59).
-                tonicMidi = 52 + (keyIndex - 4); 
+            if (keyIndex >= 0 && keyIndex <= 6) { // C (0) to F# (6)
+                tonicMidi = 60 + keyIndex; // C4 (60) to F#4 (66)
+            } else { // G (7) to B (11)
+                tonicMidi = 48 + keyIndex; // G3 (55) to B3 (59)
             }
             // --- END UPDATED LOGIC ---
 
@@ -536,24 +534,14 @@
             const width = containerTreble.offsetWidth > 450 ? 450 : containerTreble.offsetWidth;
             const height = 140; 
             
-            // 1. NOTES FOR TREBLE CLEF (Original octave)
+            // 1. NOTES FOR TREBLE CLEF (Original centered notes)
             const trebleClefNoteParts = state.highlightedMidiNotes.map(getVexFlowNoteParts);
             const trebleClefVexFlowNotes = trebleClefNoteParts.map(p => p.vfNote);
             
-            // 2. NOTES FOR BASS CLEF (Conditional one-octave down transposition)
+            // 2. NOTES FOR BASS CLEF (Standard one-octave down transposition)
             const bassClefMidiNotes = state.highlightedMidiNotes
-                .map(midi => {
-                    const pitchClass = midi % 12;
-                    // Pitch classes E (4) through B (11) need to be dropped an octave.
-                    // This includes E, F, F#/Gb, G, G#/Ab, A, A#/Bb, and B.
-                    // Pitch classes C (0), C# (1)/Db, D (2), D# (3)/Eb remain at the original octave.
-                    if (pitchClass >= 4 && pitchClass <= 11) {
-                        return midi - 12; // Transpose down one octave
-                    }
-                    return midi; // Use original MIDI note
-                })
-                // Filter out any notes that might fall below the lowest reasonable MIDI for the bass clef (e.g., below MIDI 30/31)
-                .filter(midi => midi > 30); 
+                .map(midi => midi - 12) // Transpose all notes down one octave
+                .filter(midi => midi >= 40); // Filter out notes lower than E2 (MIDI 40)
 
             const bassClefNoteParts = bassClefMidiNotes.map(getVexFlowNoteParts);
             const bassClefVexFlowNotes = bassClefNoteParts.map(p => p.vfNote);
@@ -728,10 +716,10 @@
             
             // --- Determine the base MIDI for the Tonic (Root Key) of the scale (duplicated logic from above) ---
             let tonicMidi;
-            if (state.currentKeyIndex >= 0 && state.currentKeyIndex <= 3) { 
-                tonicMidi = 60 + state.currentKeyIndex; 
-            } else { 
-                tonicMidi = 52 + (state.currentKeyIndex - 4); 
+            if (state.currentKeyIndex >= 0 && state.currentKeyIndex <= 6) { // C (0) to F# (6)
+                tonicMidi = 60 + state.currentKeyIndex; // C4 (60) to F#4 (66)
+            } else { // G (7) to B (11)
+                tonicMidi = 48 + state.currentKeyIndex; // G3 (55) to B3 (59)
             }
             // --- END UPDATED LOGIC ---
 
