@@ -437,6 +437,33 @@
         }
 
         /**
+         * NEW: Intelligently calculates notes for Treble Clef staff rendering.
+         * Transposes the notes up by 1 octave if the lowest note is below B4 (MIDI 71).
+         */
+        function calculateTrebleClefNotes(midiNotes) {
+            if (midiNotes.length === 0) return [];
+            
+            const lowestNote = midiNotes[0];
+            const MIN_MIDI_TREBLE_CLEF_ROOT = 71; // B4
+            const MAX_MIDI_TREBLE_CLEF = 96; // C7 (A reasonable upper limit)
+
+            let octaveShift = 0; 
+            
+            // If the lowest note is below B4, shift up one octave.
+            if (lowestNote < MIN_MIDI_TREBLE_CLEF_ROOT) {
+                octaveShift = 12;
+            }
+            
+            // Apply final transposition and filter out anything too high (above C7)
+            const finalNotes = midiNotes
+                .map(midi => midi + octaveShift)
+                .filter(midi => midi < MAX_MIDI_TREBLE_CLEF); 
+
+            return finalNotes;
+        }
+
+
+        /**
          * NEW: Intelligently calculates notes for Bass Clef staff rendering.
          * Transposes the notes down by the minimum number of octaves (1 or more) 
          * required to keep the highest note at or below E4 (MIDI 64).
@@ -446,19 +473,18 @@
             
             // Notes are guaranteed to be sorted due to how calculateChordMidiNotes works.
             const transposedNotes = [...midiNotes];
-            const MAX_MIDI_BASS_CLEF = 64; // E4 (Highest standard Bass Clef note, often top ledger line)
-            const MIN_MIDI_BASS_CLEF = 40; // E2 (Lowest note we want to display)
+            const MAX_MIDI_BASS_CLEF = 64; // E4 
+            const MIN_MIDI_BASS_CLEF = 40; // E2
 
             // Get the highest note from the original piano visualization
             const highestOriginalNote = transposedNotes[transposedNotes.length - 1];
 
-            // Start with a default 1-octave drop (-12) as it's typically a lower visualization
+            // Start with a default 1-octave drop (-12) 
             let octaveShift = -12; 
             
             let testHighest = highestOriginalNote + octaveShift;
 
             // While the highest note is still too high (above E4), drop another octave.
-            // Safety limit: up to 4 octaves down (-48) to prevent infinite loop or over-transposition.
             while (testHighest > MAX_MIDI_BASS_CLEF && octaveShift > -48) {
                 octaveShift -= 12;
                 testHighest = highestOriginalNote + octaveShift;
@@ -630,8 +656,10 @@
             const keySig = getVexFlowKeySignature();
             const isNonDiatonicOrCKey = !getCurrentMode().isDiatonic || getCurrentMode().intervals.length !== 7 || state.currentModeId === 'harmonic_minor' || keySig === 'C';
 
-            // 1. TREBLE CLEF DATA (Original high notes)
-            const trebleClefNoteParts = state.highlightedMidiNotes.map(getVexFlowNoteParts);
+            // 1. TREBLE CLEF DATA (Auto-transposed high notes)
+            const trebleClefMidiNotes = calculateTrebleClefNotes(state.highlightedMidiNotes);
+            
+            const trebleClefNoteParts = trebleClefMidiNotes.map(getVexFlowNoteParts);
             const trebleClefVexFlowNotes = trebleClefNoteParts.map(p => p.vfNote);
             
             // 2. BASS CLEF DATA (Intelligently transposed low notes)
