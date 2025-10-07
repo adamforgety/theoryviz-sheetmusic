@@ -48,13 +48,13 @@
         }
         
         /* Style the VexFlow container to ensure it looks good */
-        /* Set a height for each staff container */
-        #staff-display-treble, #staff-display-bass {
+        /* Set a height for the single staff container */
+        #staff-display-single {
             min-height: 140px; 
         }
         
         /* Ensures the canvas/svg element from VexFlow doesn't look bad */
-        #staff-display-treble > svg, #staff-display-bass > svg {
+        #staff-display-single > svg {
             display: block;
             margin: 0 auto;
         }
@@ -106,12 +106,18 @@
                 </div>
             
             <div id="sheet-music-container" class="p-4 bg-gray-100 border border-gray-300 rounded-xl shadow-inner">
-                <h2 class="text-xl font-bold text-gray-800 mb-3 border-b pb-2">Musical Staff (Grand Staff)</h2>
-                
-                <div id="staff-display-treble" class="w-full overflow-x-scroll mb-4 border-b border-gray-300 pb-2">
+                <div class="flex justify-between items-center mb-3 border-b pb-2">
+                    <h2 class="text-xl font-bold text-gray-800">Musical Staff</h2>
+                    <div>
+                        <label for="clef-select" class="sr-only">Select Clef</label>
+                        <select id="clef-select" onchange="handleClefChange(event.target.value)"
+                                class="p-1 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
+                            <option value="treble">Treble Clef</option>
+                            <option value="bass">Bass Clef</option>
+                        </select>
+                    </div>
                 </div>
-                
-                <div id="staff-display-bass" class="w-full overflow-x-scroll">
+                <div id="staff-display-single" class="w-full overflow-x-scroll min-h-[140px]">
                 </div>
             </div>
 
@@ -263,7 +269,8 @@
             highlightedPitchClasses: [], 
             highlightedMidiNotes: [], 
             isCenteringEnabled: true, 
-            visualizationMode: 'scale' 
+            visualizationMode: 'scale',
+            currentClef: 'treble' // NEW: Track the currently selected clef
         };
 
         // --- CORE MUSIC THEORY LOGIC ---
@@ -361,7 +368,7 @@
             } else { // G (7) to B (11)
                 tonicMidi = 48 + keyIndex; // G3 (55) to B3 (59)
             }
-            // --- END UPDATED LOGIC ---
+            // --- END TONIC CALCULATION ---
 
             if (!mode.isDiatonic || mode.intervals.length < 7 || state.visualizationMode === 'scale') {
                  return calculateSingleScaleMidiNote(keyIndex, degree);
@@ -430,7 +437,7 @@
             } else { // G (7) to B (11)
                 tonicMidi = 48 + keyIndex; // G3 (55) to B3 (59)
             }
-            // --- END UPDATED LOGIC ---
+            // --- END TONIC CALCULATION ---
 
             const rootMidi = tonicMidi + intervalOffset;
             
@@ -514,31 +521,91 @@
         }
         
         /**
-         * Renders the sheet music staff with the highlighted notes for both Treble and Bass clefs.
+         * Helper function to draw a single VexFlow staff into a container.
+         */
+        const drawStaff = (container, clef, vfNotes, notePartsData, keySig, isNonDiatonicOrCKey, width, height) => {
+                
+            if (vfNotes.length === 0) {
+                 // Display a message if no notes are left after transposition/filtering
+                 container.innerHTML = `<p class="text-center text-gray-500 py-4">Notes are too low to display in the ${clef} staff's target octave.</p>`;
+                 return;
+            }
+
+            const renderer = new Renderer(container, Renderer.Backends.SVG);
+            renderer.resize(width, height);
+            const context = renderer.getContext();
+            context.clear(); 
+            
+            // --- Stave (Staff) Setup ---
+            const stave = new Stave(10, 10, width - 20); // x, y, width
+            
+            // Add clef
+            stave.addClef(clef);
+            
+            // Add key signature
+            stave.addKeySignature(keySig);
+            
+            stave.setContext(context).draw();
+
+            // --- Note Setup ---
+            const note = new StaveNote({
+                keys: vfNotes, // Use the passed-in VexFlow notes (e.g., ['c/4', 'e/4'])
+                duration: 'q', 
+                clef: clef 
+            });
+            
+            // Add accidentals if necessary
+            if (isNonDiatonicOrCKey) {
+                notePartsData.forEach((part, index) => {
+                    const accidentalType = part.accidental; // '#' or 'b'
+                    
+                    // We only explicitly add the accidental if the pitch is sharp or flat.
+                    if (accidentalType === '#') {
+                        note.addModifier(new Accidental("#"), index);
+                    } else if (accidentalType === 'b') {
+                        note.addModifier(new Accidental("b"), index);
+                    }
+                });
+            }
+            
+            // --- Voice and Drawing ---
+            const voice = new Voice({ num_beats: 1, beat_value: 4 }); 
+            voice.addTickables([note]);
+            
+            // Format and justify the notes to fit the stave width
+            new Formatter().joinVoices([voice]).format([voice], width - 40); 
+            
+            // Render the notes
+            voice.draw(context, stave);
+        };
+        
+        /**
+         * Renders the sheet music staff with the highlighted notes for the selected clef.
          */
         function drawSheetMusic() {
-            // Get both containers
-            const containerTreble = document.getElementById('staff-display-treble');
-            const containerBass = document.getElementById('staff-display-bass');
+            // Get the single container
+            const container = document.getElementById('staff-display-single');
             
             // Clear previous content
-            containerTreble.innerHTML = ''; 
-            containerBass.innerHTML = ''; 
+            container.innerHTML = ''; 
 
             if (state.highlightedMidiNotes.length === 0) {
-                 containerTreble.innerHTML = '<p class="text-center text-gray-500 py-4">Select a key and scale degree to view the notes on the staff.</p>';
+                 container.innerHTML = '<p class="text-center text-gray-500 py-4">Select a key and scale degree to view the notes on the staff.</p>';
                  return;
             }
             
             // --- Common Setup ---
-            const width = containerTreble.offsetWidth > 450 ? 450 : containerTreble.offsetWidth;
+            const width = container.offsetWidth > 450 ? 450 : container.offsetWidth;
             const height = 140; 
             
-            // 1. NOTES FOR TREBLE CLEF (Original centered notes)
+            const keySig = getVexFlowKeySignature();
+            const isNonDiatonicOrCKey = !getCurrentMode().isDiatonic || getCurrentMode().intervals.length !== 7 || state.currentModeId === 'harmonic_minor' || keySig === 'C';
+
+            // 1. TREBLE CLEF DATA
             const trebleClefNoteParts = state.highlightedMidiNotes.map(getVexFlowNoteParts);
             const trebleClefVexFlowNotes = trebleClefNoteParts.map(p => p.vfNote);
             
-            // 2. NOTES FOR BASS CLEF (Standard one-octave down transposition)
+            // 2. BASS CLEF DATA (Standard one-octave down transposition, filtered at E2)
             const bassClefMidiNotes = state.highlightedMidiNotes
                 .map(midi => midi - 12) // Transpose all notes down one octave
                 .filter(midi => midi >= 40); // Filter out notes lower than E2 (MIDI 40)
@@ -546,77 +613,12 @@
             const bassClefNoteParts = bassClefMidiNotes.map(getVexFlowNoteParts);
             const bassClefVexFlowNotes = bassClefNoteParts.map(p => p.vfNote);
 
-
-            const keySig = getVexFlowKeySignature();
-            
-            // Determine if we need to manually add accidentals
-            // (e.g., for Harmonic Minor or scales without a key signature, like Pentatonic or C)
-            const isNonDiatonicOrCKey = !getCurrentMode().isDiatonic || getCurrentMode().intervals.length !== 7 || state.currentModeId === 'harmonic_minor' || keySig === 'C';
-            
-            // --- Helper function to draw a single staff ---
-            const drawStaff = (container, clef, vfNotes, notePartsData) => {
-                
-                if (vfNotes.length === 0) {
-                     // Display a message if no notes are left after transposition/filtering
-                     container.innerHTML = `<p class="text-center text-gray-500 py-4">Notes are too low to display in the ${clef} staff's target octave.</p>`;
-                     return;
-                }
-
-                const renderer = new Renderer(container, Renderer.Backends.SVG);
-                renderer.resize(width, height);
-                const context = renderer.getContext();
-                context.clear(); 
-                
-                // --- Stave (Staff) Setup ---
-                const stave = new Stave(10, 10, width - 20); // x, y, width
-                
-                // Add clef
-                stave.addClef(clef);
-                
-                // Add key signature
-                stave.addKeySignature(keySig);
-                
-                stave.setContext(context).draw();
-
-                // --- Note Setup ---
-                const note = new StaveNote({
-                    keys: vfNotes, // Use the passed-in VexFlow notes (e.g., ['c/4', 'e/4'])
-                    duration: 'q', 
-                    clef: clef 
-                });
-                
-                // Add accidentals if necessary
-                if (isNonDiatonicOrCKey) {
-                    notePartsData.forEach((part, index) => {
-                        const accidentalType = part.accidental; // '#' or 'b'
-                        
-                        // We rely on VexFlow to automatically add naturals to cancel the key signature 
-                        // when the note is simply the base letter name (e.g., 'b/4' in Eb Major).
-                        // We only explicitly add the accidental if the pitch is sharp or flat.
-                        if (accidentalType === '#') {
-                            note.addModifier(new Accidental("#"), index);
-                        } else if (accidentalType === 'b') {
-                            note.addModifier(new Accidental("b"), index);
-                        }
-                    });
-                }
-                
-                // --- Voice and Drawing ---
-                const voice = new Voice({ num_beats: 1, beat_value: 4 }); 
-                voice.addTickables([note]);
-                
-                // Format and justify the notes to fit the stave width
-                new Formatter().joinVoices([voice]).format([voice], width - 40); 
-                
-                // Render the notes
-                voice.draw(context, stave);
-            };
-
-            // 1. Draw Treble Staff (using original notes)
-            drawStaff(containerTreble, 'treble', trebleClefVexFlowNotes, trebleClefNoteParts);
-            
-            // 2. Draw Bass Staff (using conditionally transposed notes)
-            drawStaff(containerBass, 'bass', bassClefVexFlowNotes, bassClefNoteParts);
+            // --- Conditional Drawing ---
+            if (state.currentClef === 'treble') {
+                drawStaff(container, 'treble', trebleClefVexFlowNotes, trebleClefNoteParts, keySig, isNonDiatonicOrCKey, width, height);
+            } else if (state.currentClef === 'bass') {
+                drawStaff(container, 'bass', bassClefVexFlowNotes, bassClefNoteParts, keySig, isNonDiatonicOrCKey, width, height);
+            }
         }
 
         // --- KEYBOARD RENDERING HELPERS (Rest of the file is unchanged) ---
@@ -721,7 +723,7 @@
             } else { // G (7) to B (11)
                 tonicMidi = 48 + state.currentKeyIndex; // G3 (55) to B3 (59)
             }
-            // --- END UPDATED LOGIC ---
+            // --- END TONIC CALCULATION ---
 
 
             for (let i = 0; i < scaleSteps.length; i++) { 
@@ -1143,6 +1145,11 @@
             updateUI();
         }
         
+        function handleClefChange(clef) {
+            state.currentClef = clef;
+            updateUI();
+        }
+
         function handleDegreeChange(degree) {
             const mode = getCurrentMode();
             
