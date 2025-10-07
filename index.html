@@ -406,7 +406,6 @@
 
         /**
          * Calculates the specific MIDI note for the root of the selected scale degree. Used in Scale View.
-         * MODIFIED: Added an octave shift for Bass Clef scale notes.
          */
         function calculateSingleScaleMidiNote(keyIndex, degree) {
             const scaleIntervals = getCurrentMode().intervals;
@@ -434,9 +433,8 @@
 
             let rootMidi = tonicMidi + intervalOffset;
             
-            // *** FIX: If in Bass Clef and Scale View, shift the base octave down by one octave. ***
+            // If in Bass Clef and Scale View, shift the base octave down by one octave to center it naturally.
             if (state.currentClef === 'bass' && state.visualizationMode === 'scale') {
-                // If the note is C4 (60) or higher, shift it down to C3 (48) or lower to center it naturally in the bass clef.
                 if (rootMidi >= 60) {
                      rootMidi -= 12;
                 }
@@ -448,14 +446,13 @@
 
         /**
          * Intelligently calculates notes for Treble Clef staff rendering.
-         * For keys G, G#, A, A#, it applies an initial +12 octave shift (to ensure the tonic starts high), 
-         * and then performs a downward-only boundary check/transposition.
-         * For all other keys, it retains the existing logic (selects the lowest octave shift that fits).
+         * Prioritizes the highest possible octave placement that fits within the staff boundaries (B3 to C6)
+         * for the general case, addressing the 'breaking too early' issue.
          */
         function calculateTrebleClefNotes(midiNotes) {
             if (midiNotes.length === 0) return [];
             
-            const MIN_MIDI = 59; // B3 (Lowest line/space)
+            const MIN_MIDI = 59; // B3 (Lowest ledger line/space)
             const MAX_MIDI = 84; // C6 (Highest ledger line)
             
             let workingNotes = [...midiNotes]; // Clone for modification
@@ -491,20 +488,20 @@
             }
             
             else {
-                // GENERAL CASE (C, C#, D, D#, E, F, F#, B): Find the lowest octave shift that fits fully.
+                // GENERAL CASE (C, C#, D, D#, E, F, F#, B): Find the highest octave shift that fits fully.
                 const lowestOriginal = workingNotes[0];
                 let bestShift = 0;
                 let foundFit = false;
                 
-                // Iterate from lowest shift (-24) to highest shift (+24) and select the first one that fits
-                for (let shift = -24; shift <= 24; shift += 12) {
+                // MODIFICATION: Iterate from highest shift down to lowest to prioritize the highest octave that fits.
+                for (let shift = 24; shift >= -24; shift -= 12) {
                     const lowestShifted = lowestOriginal + shift;
-                    const highestShifted = workingNotes[workingNotes.length - 1] + shift;
+                    const highestShifted = workingNotes[workingNotes.length - 1] + shift; 
 
                     if (lowestShifted >= MIN_MIDI && highestShifted <= MAX_MIDI) {
                         bestShift = shift;
                         foundFit = true;
-                        break; // Select the lowest valid shift (highest preference for low placement)
+                        break; // Select the highest valid shift
                     }
                 }
 
