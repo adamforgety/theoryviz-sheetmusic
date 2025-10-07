@@ -438,12 +438,12 @@
 
         /**
          * UPDATED: Intelligently calculates notes for Treble Clef staff rendering.
-         * Finds the lowest octave shift where all notes fall within B3 (MIDI 59) to C6 (MIDI 84).
+         * Finds the LOWEST octave shift where all notes fall within B3 (MIDI 59) to C6 (MIDI 84).
+         * Priority is now given to the LOWEST valid octave shift.
          */
         function calculateTrebleClefNotes(midiNotes) {
             if (midiNotes.length === 0) return [];
             
-            // --- UPDATED BOUNDARIES ---
             const MIN_MIDI = 59; // B3 (Lowest line/space)
             const MAX_MIDI = 84; // C6 (Highest ledger line)
             
@@ -454,6 +454,7 @@
             let foundFit = false;
 
             // Iterate over likely shifts: -2 octaves to +2 octaves (in 12 semitone steps)
+            // The iteration goes from low to high. The FIRST valid shift found will be the lowest.
             for (let shift = -24; shift <= 24; shift += 12) {
                 const lowestShifted = lowestOriginal + shift;
                 const highestShifted = highestOriginal + shift;
@@ -461,7 +462,7 @@
                 if (lowestShifted >= MIN_MIDI && highestShifted <= MAX_MIDI) {
                     bestShift = shift;
                     foundFit = true;
-                    break; 
+                    break; // <<< CHANGE: Select the lowest valid shift and stop.
                 }
             }
 
@@ -484,12 +485,12 @@
 
         /**
          * UPDATED: Intelligently calculates notes for Bass Clef staff rendering.
-         * Finds the lowest octave shift where all notes fall within C2 (MIDI 36) to E4 (MIDI 64).
+         * Finds the LOWEST octave shift where all notes fall within C2 (MIDI 36) to E4 (MIDI 64).
+         * Priority is now given to the LOWEST valid octave shift.
          */
         function calculateBassClefNotes(midiNotes) {
             if (midiNotes.length === 0) return [];
             
-            // --- UPDATED BOUNDARIES ---
             const MIN_MIDI = 36; // C2 (Lowest ledger line)
             const MAX_MIDI = 64; // E4 (Highest ledger line/space)
             
@@ -500,6 +501,7 @@
             let foundFit = false;
 
             // Iterate over likely shifts: -3 octaves to +1 octave (in 12 semitone steps)
+            // The iteration goes from low to high. The FIRST valid shift found will be the lowest.
             for (let shift = -36; shift <= 12; shift += 12) {
                 const lowestShifted = lowestOriginal + shift;
                 const highestShifted = highestOriginal + shift;
@@ -507,7 +509,7 @@
                 if (lowestShifted >= MIN_MIDI && highestShifted <= MAX_MIDI) {
                     bestShift = shift;
                     foundFit = true;
-                    break; 
+                    break; // <<< CHANGE: Select the lowest valid shift and stop.
                 }
             }
 
