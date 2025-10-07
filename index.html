@@ -437,9 +437,10 @@
         }
 
         /**
-         * UPDATED: Intelligently calculates notes for Treble Clef staff rendering.
-         * Finds the LOWEST octave shift where all notes fall within B3 (MIDI 59) to C6 (MIDI 84).
-         * Priority is now given to the LOWEST valid octave shift.
+         * Intelligently calculates notes for Treble Clef staff rendering.
+         * For keys G, G#, A, A#, it applies an initial +12 octave shift (to ensure the tonic starts high), 
+         * and then performs a downward-only boundary check/transposition.
+         * For all other keys, it retains the existing logic (selects the lowest octave shift that fits).
          */
         function calculateTrebleClefNotes(midiNotes) {
             if (midiNotes.length === 0) return [];
@@ -447,36 +448,71 @@
             const MIN_MIDI = 59; // B3 (Lowest line/space)
             const MAX_MIDI = 84; // C6 (Highest ledger line)
             
-            const lowestOriginal = midiNotes[0];
-            const highestOriginal = midiNotes[midiNotes.length - 1];
+            let workingNotes = [...midiNotes]; // Clone for modification
 
-            let bestShift = 0;
-            let foundFit = false;
-
-            // Iterate over likely shifts: -2 octaves to +2 octaves (in 12 semitone steps)
-            // The iteration goes from low to high. The FIRST valid shift found will be the lowest.
-            for (let shift = -24; shift <= 24; shift += 12) {
-                const lowestShifted = lowestOriginal + shift;
-                const highestShifted = highestOriginal + shift;
-
-                if (lowestShifted >= MIN_MIDI && highestShifted <= MAX_MIDI) {
-                    bestShift = shift;
-                    foundFit = true;
-                    break; // <<< CHANGE: Select the lowest valid shift and stop.
-                }
-            }
-
-            if (!foundFit) {
-                // Fallback: Calculate the minimum upward shift to get the lowest note in range.
-                let targetLowest = lowestOriginal;
-                while (targetLowest < MIN_MIDI) {
-                    targetLowest += 12;
-                }
-                bestShift = targetLowest - lowestOriginal; 
+            // 1. Initial Octave Adjustment for High-Start Keys (G, G#, A, A#)
+            const HIGH_START_PITCH_CLASSES = [7, 8, 9, 10]; // G, G#/Ab, A, A#/Bb
+            const tonicPitchClass = state.currentKeyIndex; 
+            
+            let initialAdjustment = 0;
+            
+            // If the tonic is one of the high-start keys, boost the chord by an octave.
+            if (HIGH_START_PITCH_CLASSES.includes(tonicPitchClass)) {
+                initialAdjustment = 12;
+                workingNotes = workingNotes.map(midi => midi + initialAdjustment);
             }
             
-            const finalNotes = midiNotes
-                .map(midi => midi + bestShift)
+            // 2. Transposition based on Case:
+
+            if (initialAdjustment === 12) {
+                // SPECIAL CASE (G, G#, A, A#): Shift down ONLY if the highest note is too high.
+                
+                let downwardShift = 0;
+                let highestWorking = workingNotes[workingNotes.length - 1];
+
+                // Calculate the shift needed to bring the highest note below or at MAX_MIDI
+                while (highestWorking > MAX_MIDI) {
+                    downwardShift -= 12;
+                    highestWorking = workingNotes[workingNotes.length - 1] + downwardShift;
+                }
+                
+                // Final shift is the calculated downwardShift (which is 0 or negative)
+                workingNotes = workingNotes.map(midi => midi + downwardShift);
+            }
+            
+            else {
+                // GENERAL CASE (C, C#, D, D#, E, F, F#, B): Find the lowest octave shift that fits fully.
+                const lowestOriginal = workingNotes[0];
+                let bestShift = 0;
+                let foundFit = false;
+                
+                // Iterate from lowest shift (-24) to highest shift (+24) and select the first one that fits
+                for (let shift = -24; shift <= 24; shift += 12) {
+                    const lowestShifted = lowestOriginal + shift;
+                    const highestShifted = workingNotes[workingNotes.length - 1] + shift;
+
+                    if (lowestShifted >= MIN_MIDI && highestShifted <= MAX_MIDI) {
+                        bestShift = shift;
+                        foundFit = true;
+                        break; // Select the lowest valid shift (highest preference for low placement)
+                    }
+                }
+
+                if (!foundFit) {
+                    // Fallback: Shift minimum required to get the lowest note in range.
+                    let targetLowest = lowestOriginal;
+                    while (targetLowest < MIN_MIDI) {
+                        targetLowest += 12;
+                    }
+                    bestShift = targetLowest - lowestOriginal; 
+                }
+                
+                workingNotes = workingNotes.map(midi => midi + bestShift);
+            }
+
+
+            // 3. Final filtering (notes that fall outside boundaries are removed)
+            const finalNotes = workingNotes
                 .filter(midi => midi >= MIN_MIDI && midi <= MAX_MIDI);
                 
             return finalNotes;
@@ -485,8 +521,9 @@
 
         /**
          * UPDATED: Intelligently calculates notes for Bass Clef staff rendering.
-         * Finds the LOWEST octave shift where all notes fall within C2 (MIDI 36) to E4 (MIDI 64).
-         * Priority is now given to the LOWEST valid octave shift.
+         * Finds the HIGHEST octave shift where all notes fall within C2 (MIDI 36) to E4 (MIDI 64).
+         * This prioritizes placing the chord as high as possible on the staff without exceeding the E4 upper boundary,
+         * satisfying the request to "go up to the highest boundary and then shift down" (i.e., prefer higher placement).
          */
         function calculateBassClefNotes(midiNotes) {
             if (midiNotes.length === 0) return [];
@@ -497,23 +534,24 @@
             const lowestOriginal = midiNotes[0];
             const highestOriginal = midiNotes[midiNotes.length - 1];
 
-            let bestShift = 0;
-            let foundFit = false;
+            let highestValidShift = null; 
 
-            // Iterate over likely shifts: -3 octaves to +1 octave (in 12 semitone steps)
-            // The iteration goes from low to high. The FIRST valid shift found will be the lowest.
-            for (let shift = -36; shift <= 12; shift += 12) {
+            // Iterate over likely shifts: from highest (+12) down to lowest (-36).
+            // The first one that fits will be the HIGHEST valid position, as requested.
+            for (let shift = 12; shift >= -36; shift -= 12) { // Changed loop direction
                 const lowestShifted = lowestOriginal + shift;
                 const highestShifted = highestOriginal + shift;
 
                 if (lowestShifted >= MIN_MIDI && highestShifted <= MAX_MIDI) {
-                    bestShift = shift;
-                    foundFit = true;
-                    break; // <<< CHANGE: Select the lowest valid shift and stop.
+                    highestValidShift = shift;
+                    break; // Found the highest valid shift, so we stop and use it.
                 }
             }
-
-            if (!foundFit) {
+            
+            let bestShift = 0;
+            if (highestValidShift !== null) {
+                bestShift = highestValidShift;
+            } else {
                 // Fallback: Calculate the minimum upward shift to get the lowest note in range.
                 let targetLowest = lowestOriginal;
                 while (targetLowest < MIN_MIDI) {
