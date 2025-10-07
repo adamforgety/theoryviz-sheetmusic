@@ -100,20 +100,17 @@
             </div>
         </div>
         
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            
-            <div id="consolidated-display" class="py-3 px-4 bg-blue-50 text-blue-800 rounded-lg shadow-inner border border-blue-200 text-center">
-                </div>
+        <div class="grid grid-cols-1 lg:grid-cols-1 gap-4 mb-6">
             
             <div id="sheet-music-container" class="p-4 bg-gray-100 border border-gray-300 rounded-xl shadow-inner">
-                <div class="flex justify-between items-center mb-3 border-b pb-2">
-                    <h2 class="text-xl font-bold text-gray-800">Musical Staff</h2>
-                    <div>
-                        <label for="clef-select" class="sr-only">Select Clef</label>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 border-b pb-2"> 
+                    <h2 id="staff-header-text" class="text-lg font-bold text-gray-800 mb-2 sm:mb-0"></h2> 
+                    <div class="flex items-center space-x-3">
+                        <label for="clef-select" class="text-sm text-gray-700 font-medium">Clef:</label>
                         <select id="clef-select" onchange="handleClefChange(event.target.value)"
                                 class="p-1 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
-                            <option value="treble">Treble Clef</option>
-                            <option value="bass">Bass Clef</option>
+                            <option value="treble">Treble</option>
+                            <option value="bass">Bass</option>
                         </select>
                     </div>
                 </div>
@@ -270,7 +267,7 @@
             highlightedMidiNotes: [], 
             isCenteringEnabled: true, 
             visualizationMode: 'scale',
-            currentClef: 'treble' // NEW: Track the currently selected clef
+            currentClef: 'treble' 
         };
 
         // --- CORE MUSIC THEORY LOGIC ---
@@ -285,7 +282,7 @@
         function getSimplifiedKeyName() {
             const rootName = state.currentKeyName;
             const modeName = getCurrentMode().name;
-            return `Key of ${rootName} - ${modeName}`;
+            return `${rootName} ${modeName.replace(/\s*\(.*\)/, '')}`; // e.g., "C Ionian"
         }
 
 
@@ -321,32 +318,28 @@
                 const romanNumeral = mode.qualities[degreeIndex];
                 const quality = mode.triadQualities[degreeIndex];
                 
-                let inversionText = 'Root Position';
+                let inversionText = '';
                 if (state.currentInversion === 1) {
-                    inversionText = '1st Inversion / 6';
+                    inversionText = ' / 6';
                 } else if (state.currentInversion === 2) {
-                    inversionText = '2nd Inversion / 6/4';
+                    inversionText = ' / 6/4';
                 }
 
-                // Selected: prefix
-                return `Selected: ${highlightRootName}${quality} (${romanNumeral}) (${inversionText})`;
+                // e.g., "CMaj (I) / 6"
+                return `${highlightRootName}${quality} (${romanNumeral})${inversionText}`;
             } else {
                 // Note selected: C (1st)
                 let degreeText;
                 if (degree === 1) {
-                    degreeText = '1st';
-                } else if (degree === 2) {
-                    degreeText = '2nd';
-                } else if (degree === 3) {
-                    degreeText = '3rd';
+                    degreeText = '1';
                 } else if (degree === 8) {
-                    degreeText = 'Octave (8th)';
+                    degreeText = '8';
                 } else {
-                    degreeText = `${degree}th`;
+                    degreeText = degree.toString();
                 }
                 
-                // Selected: prefix
-                return `Selected: ${highlightRootName} (${degreeText})`;
+                // e.g., "C (1)"
+                return `${highlightRootName} (${degreeText})`;
             }
         }
 
@@ -621,7 +614,7 @@
             }
         }
 
-        // --- KEYBOARD RENDERING HELPERS (Rest of the file is unchanged) ---
+        // --- KEYBOARD RENDERING HELPERS (Rest of the file is largely unchanged) ---
         
         /**
          * Returns the correctly spelled note name (sharp or flat) for a MIDI note/pitch class,
@@ -984,7 +977,7 @@
             const scaleBtn = document.getElementById('mode-scale-btn');
 
             // Classes for the ACTIVE (blue) state
-            const activeClasses = ['bg-blue-600', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-300', 'border-blue-600'];
+            const activeClasses = ['bg-blue-700', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-300', 'border-blue-700'];
             
             // Classes for the INACTIVE (gray/white) state
             const inactiveClasses = ['bg-white', 'text-gray-700', 'hover:bg-gray-200', 'border-gray-300', 'shadow-sm'];
@@ -1070,17 +1063,20 @@
         }
 
         /**
-         * Renders the consolidated display block above the keyboard.
+         * NEW: Renders the combined key/mode and chord/note info into the staff header.
          */
-        function renderConsolidatedDisplay() {
-            const display = document.getElementById('consolidated-display');
-            const detailedText = getDetailedHighlightName();
-            const keyModeText = getSimplifiedKeyName();
+        function renderStaffHeader() {
+            const headerElement = document.getElementById('staff-header-text');
+            if (!headerElement) return;
 
-            display.innerHTML = `
-                <p class="text-lg font-bold">${detailedText}</p>
-                <p class="text-sm font-medium opacity-90 mt-1">${keyModeText}</p>
-            `;
+            const detailedText = getDetailedHighlightName(); // e.g., "CMaj (I) / 6" or "C (1)"
+            const keyModeText = getSimplifiedKeyName(); // e.g., "C Ionian"
+
+            // Combine into a concise format: Key Mode | Chord/Note Info
+            // Example: C Ionian | CMaj (I) / 6
+            const displayString = `${keyModeText} | ${detailedText}`;
+            
+            headerElement.textContent = displayString;
         }
         
         // --- HANDLERS ---
@@ -1122,7 +1118,7 @@
             // Render UI components
             renderKeySelect();
             renderChordButtons();
-            renderConsolidatedDisplay(); // Renders both key/mode and highlight in one go
+            renderStaffHeader(); // NEW CALL: Updates the consolidated header text
             renderStepVisualizer(); 
             renderVisualizationModeButtons(); // Updates button active states
             drawKeyboard(); 
