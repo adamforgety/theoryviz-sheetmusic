@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TheoryViz</title>
     <meta name="theme-color" content="#3b82f6">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -61,18 +60,14 @@
 
     </style>
 </head>
-<body class="bg-gray-50 font-sans p-4 md:p-8">
-
-    <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-10">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3 text-center">
-            TheoryViz
+<body class="bg-gray-50 font-sans p-8"> <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl p-10"> <h1 class="text-4xl font-extrabold text-gray-800 mb-3 text-center"> TheoryViz
         </h1>
         <p class="text-center text-gray-600 mb-6">
             Visualize harmony anywhere!
         </p>
 
         <div class="p-4 bg-gray-100 rounded-xl mb-6 shadow-inner border border-gray-200">
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-4"> 
             
                 <div>
                     <label for="key-select" class="block text-xs font-medium text-gray-700 mb-1">Root Key</label>
@@ -89,13 +84,11 @@
                 </div>
 
                 <button id="mode-chord-btn" onclick="handleVisualizationModeChange('chord')"
-                        class="viz-btn w-full text-sm md:text-base">
-                    Chord View
+                        class="viz-btn w-full text-base"> Chord View
                 </button>
                 
                 <button id="mode-scale-btn" onclick="handleVisualizationModeChange('scale')"
-                        class="viz-btn w-full text-sm md:text-base">
-                    Scale View
+                        class="viz-btn w-full text-base"> Scale View
                 </button>
             </div>
         </div>
@@ -103,8 +96,8 @@
         <div class="grid grid-cols-1 lg:grid-cols-1 gap-4 mb-6">
             
             <div id="sheet-music-container" class="p-4 bg-gray-100 border border-gray-300 rounded-xl shadow-inner">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 border-b pb-2"> 
-                    <h2 id="staff-header-text" class="text-lg font-bold text-gray-800 mb-2 sm:mb-0"></h2> 
+                <div class="flex flex-col justify-between items-start mb-3 border-b pb-2"> 
+                    <h2 id="staff-header-text" class="text-lg font-bold text-gray-800 mb-2"> </h2> 
                     <div class="flex items-center space-x-3">
                         <label for="clef-select" class="text-sm text-gray-700 font-medium">Clef:</label>
                         <select id="clef-select" onchange="handleClefChange(event.target.value)"
@@ -130,8 +123,7 @@
             Click the <span class="text-blue-700 font-extrabold">ACTIVE</span> Roman numeral to cycle <span class="text-indigo-700">INVERSIONS</span> (Root, 1st, 2st) in Chord View.
         </div>
 
-        <div id="chord-buttons-container" class="grid grid-cols-4 sm:grid-cols-7 gap-3">
-            </div>
+        <div id="chord-buttons-container" class="grid grid-cols-8 gap-3"> </div>
         
     </div>
 
@@ -1105,6 +1097,7 @@
 
             // Adjust grid layout dynamically
             container.classList.remove('sm:grid-cols-7', 'sm:grid-cols-5', 'sm:grid-cols-8');
+            // Using grid-cols-4 and sm:grid-cols-8 (desktop)
             container.classList.add(numDegrees === 8 ? 'sm:grid-cols-8' : 'sm:grid-cols-5');
 
 
@@ -1269,6 +1262,8 @@
         
         // --- PWA Registration (Existing functionality) ---
         function registerPwa() {
+            // Note: Keeping this for potential desktop PWA installation, but the core PWA 
+            // experience is not tied to the viewport meta tag.
             const manifestContent = {
                 "name": "TheoryViz",
                 "short_name": "TheoryViz",
