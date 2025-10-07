@@ -406,6 +406,7 @@
 
         /**
          * Calculates the specific MIDI note for the root of the selected scale degree. Used in Scale View.
+         * MODIFIED: Added an octave shift for Bass Clef scale notes.
          */
         function calculateSingleScaleMidiNote(keyIndex, degree) {
             const scaleIntervals = getCurrentMode().intervals;
@@ -431,8 +432,17 @@
             }
             // --- END TONIC CALCULATION ---
 
-            const rootMidi = tonicMidi + intervalOffset;
+            let rootMidi = tonicMidi + intervalOffset;
             
+            // *** FIX: If in Bass Clef and Scale View, shift the base octave down by one octave. ***
+            if (state.currentClef === 'bass' && state.visualizationMode === 'scale') {
+                // If the note is C4 (60) or higher, shift it down to C3 (48) or lower to center it naturally in the bass clef.
+                if (rootMidi >= 60) {
+                     rootMidi -= 12;
+                }
+            }
+
+
             return [rootMidi].filter(midi => midi >= START_MIDI && midi <= END_MIDI);
         }
 
