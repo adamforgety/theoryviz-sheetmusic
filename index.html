@@ -437,63 +437,92 @@
         }
 
         /**
-         * NEW: Intelligently calculates notes for Treble Clef staff rendering.
-         * Transposes the notes up by 1 octave if the lowest note is below B4 (MIDI 71).
+         * UPDATED: Intelligently calculates notes for Treble Clef staff rendering.
+         * Finds the lowest octave shift where all notes fall within B3 (MIDI 59) to C6 (MIDI 84).
          */
         function calculateTrebleClefNotes(midiNotes) {
             if (midiNotes.length === 0) return [];
             
-            const lowestNote = midiNotes[0];
-            const MIN_MIDI_TREBLE_CLEF_ROOT = 71; // B4
-            const MAX_MIDI_TREBLE_CLEF = 96; // C7 (A reasonable upper limit)
-
-            let octaveShift = 0; 
+            // --- UPDATED BOUNDARIES ---
+            const MIN_MIDI = 59; // B3 (Lowest line/space)
+            const MAX_MIDI = 84; // C6 (Highest ledger line)
             
-            // If the lowest note is below B4, shift up one octave.
-            if (lowestNote < MIN_MIDI_TREBLE_CLEF_ROOT) {
-                octaveShift = 12;
+            const lowestOriginal = midiNotes[0];
+            const highestOriginal = midiNotes[midiNotes.length - 1];
+
+            let bestShift = 0;
+            let foundFit = false;
+
+            // Iterate over likely shifts: -2 octaves to +2 octaves (in 12 semitone steps)
+            for (let shift = -24; shift <= 24; shift += 12) {
+                const lowestShifted = lowestOriginal + shift;
+                const highestShifted = highestOriginal + shift;
+
+                if (lowestShifted >= MIN_MIDI && highestShifted <= MAX_MIDI) {
+                    bestShift = shift;
+                    foundFit = true;
+                    break; 
+                }
+            }
+
+            if (!foundFit) {
+                // Fallback: Calculate the minimum upward shift to get the lowest note in range.
+                let targetLowest = lowestOriginal;
+                while (targetLowest < MIN_MIDI) {
+                    targetLowest += 12;
+                }
+                bestShift = targetLowest - lowestOriginal; 
             }
             
-            // Apply final transposition and filter out anything too high (above C7)
             const finalNotes = midiNotes
-                .map(midi => midi + octaveShift)
-                .filter(midi => midi < MAX_MIDI_TREBLE_CLEF); 
-
+                .map(midi => midi + bestShift)
+                .filter(midi => midi >= MIN_MIDI && midi <= MAX_MIDI);
+                
             return finalNotes;
         }
 
 
         /**
-         * NEW: Intelligently calculates notes for Bass Clef staff rendering.
-         * Transposes the notes down by the minimum number of octaves (1 or more) 
-         * required to keep the highest note at or below E4 (MIDI 64).
+         * UPDATED: Intelligently calculates notes for Bass Clef staff rendering.
+         * Finds the lowest octave shift where all notes fall within C2 (MIDI 36) to E4 (MIDI 64).
          */
         function calculateBassClefNotes(midiNotes) {
             if (midiNotes.length === 0) return [];
             
-            // Notes are guaranteed to be sorted due to how calculateChordMidiNotes works.
-            const transposedNotes = [...midiNotes];
-            const MAX_MIDI_BASS_CLEF = 64; // E4 
-            const MIN_MIDI_BASS_CLEF = 40; // E2
-
-            // Get the highest note from the original piano visualization
-            const highestOriginalNote = transposedNotes[transposedNotes.length - 1];
-
-            // Start with a default 1-octave drop (-12) 
-            let octaveShift = -12; 
+            // --- UPDATED BOUNDARIES ---
+            const MIN_MIDI = 36; // C2 (Lowest ledger line)
+            const MAX_MIDI = 64; // E4 (Highest ledger line/space)
             
-            let testHighest = highestOriginalNote + octaveShift;
+            const lowestOriginal = midiNotes[0];
+            const highestOriginal = midiNotes[midiNotes.length - 1];
 
-            // While the highest note is still too high (above E4), drop another octave.
-            while (testHighest > MAX_MIDI_BASS_CLEF && octaveShift > -48) {
-                octaveShift -= 12;
-                testHighest = highestOriginalNote + octaveShift;
+            let bestShift = 0;
+            let foundFit = false;
+
+            // Iterate over likely shifts: -3 octaves to +1 octave (in 12 semitone steps)
+            for (let shift = -36; shift <= 12; shift += 12) {
+                const lowestShifted = lowestOriginal + shift;
+                const highestShifted = highestOriginal + shift;
+
+                if (lowestShifted >= MIN_MIDI && highestShifted <= MAX_MIDI) {
+                    bestShift = shift;
+                    foundFit = true;
+                    break; 
+                }
             }
 
-            // Apply final transposition and filter out anything too low (below E2)
-            const finalNotes = transposedNotes
-                .map(midi => midi + octaveShift)
-                .filter(midi => midi >= MIN_MIDI_BASS_CLEF);
+            if (!foundFit) {
+                // Fallback: Calculate the minimum upward shift to get the lowest note in range.
+                let targetLowest = lowestOriginal;
+                while (targetLowest < MIN_MIDI) {
+                    targetLowest += 12;
+                }
+                bestShift = targetLowest - lowestOriginal; 
+            }
+            
+            const finalNotes = midiNotes
+                .map(midi => midi + bestShift)
+                .filter(midi => midi >= MIN_MIDI && midi <= MAX_MIDI);
                 
             return finalNotes;
         }
@@ -582,7 +611,7 @@
                 
             if (vfNotes.length === 0) {
                  // Display a message if no notes are left after transposition/filtering
-                 container.innerHTML = `<p class="text-center text-gray-500 py-4">Notes are too low to display in the ${clef} staff's target octave.</p>`;
+                 container.innerHTML = `<p class="text-center text-gray-500 py-4">Notes are outside the ${clef} staff's target range even after auto-transposition.</p>`;
                  return;
             }
 
@@ -610,6 +639,9 @@
             });
             
             // Add accidentals if necessary
+            // We use the flag check to determine if we need to manually add all accidentals 
+            // because VexFlow's built-in key signature logic won't handle the raised 7th 
+            // in harmonic minor correctly, or explicit sharps/flats in non-diatonic scales.
             if (isNonDiatonicOrCKey) {
                 notePartsData.forEach((part, index) => {
                     const accidentalType = part.accidental; // '#' or 'b'
@@ -654,26 +686,27 @@
             const height = 140; 
             
             const keySig = getVexFlowKeySignature();
+            // Flag is true for non-diatonic scales, Harmonic Minor, or if the key signature is 'C' (no sharps/flats)
             const isNonDiatonicOrCKey = !getCurrentMode().isDiatonic || getCurrentMode().intervals.length !== 7 || state.currentModeId === 'harmonic_minor' || keySig === 'C';
 
-            // 1. TREBLE CLEF DATA (Auto-transposed high notes)
-            const trebleClefMidiNotes = calculateTrebleClefNotes(state.highlightedMidiNotes);
-            
-            const trebleClefNoteParts = trebleClefMidiNotes.map(getVexFlowNoteParts);
-            const trebleClefVexFlowNotes = trebleClefNoteParts.map(p => p.vfNote);
-            
-            // 2. BASS CLEF DATA (Intelligently transposed low notes)
-            const bassClefMidiNotes = calculateBassClefNotes(state.highlightedMidiNotes);
+            let finalVexFlowNotes;
+            let finalNoteParts;
 
-            const bassClefNoteParts = bassClefMidiNotes.map(getVexFlowNoteParts);
-            const bassClefVexFlowNotes = bassClefNoteParts.map(p => p.vfNote);
-
-            // --- Conditional Drawing ---
+            // --- Conditional Drawing Data Prep ---
             if (state.currentClef === 'treble') {
-                drawStaff(container, 'treble', trebleClefVexFlowNotes, trebleClefNoteParts, keySig, isNonDiatonicOrCKey, width, height);
+                const trebleClefMidiNotes = calculateTrebleClefNotes(state.highlightedMidiNotes);
+                finalNoteParts = trebleClefMidiNotes.map(getVexFlowNoteParts);
+                finalVexFlowNotes = finalNoteParts.map(p => p.vfNote);
             } else if (state.currentClef === 'bass') {
-                drawStaff(container, 'bass', bassClefVexFlowNotes, bassClefNoteParts, keySig, isNonDiatonicOrCKey, width, height);
+                const bassClefMidiNotes = calculateBassClefNotes(state.highlightedMidiNotes);
+                finalNoteParts = bassClefMidiNotes.map(getVexFlowNoteParts);
+                finalVexFlowNotes = finalNoteParts.map(p => p.vfNote);
+            } else {
+                 return; // Should not happen
             }
+
+            // --- Draw the Staff ---
+            drawStaff(container, state.currentClef, finalVexFlowNotes, finalNoteParts, keySig, isNonDiatonicOrCKey, width, height);
         }
 
         // --- KEYBOARD RENDERING HELPERS (Rest of the file is largely unchanged) ---
