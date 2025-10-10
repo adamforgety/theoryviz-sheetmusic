@@ -681,7 +681,7 @@
             container.innerHTML = ''; 
 
             if (state.highlightedMidiNotes.length === 0) {
-                 container.innerHTML = '<p class="text-center text-gray-500 py-4">Select a key and scale degree to view the notes on the staff.</p>';
+                 container.innerHTML = '<p class="text-center text-gray-500 py-4">Notes are outside the ' + state.currentClef + ' staff\'s target range even after auto-transposition.</p>';
                  return;
             }
             
@@ -697,17 +697,9 @@
             let finalNoteParts;
 
             // --- Conditional Drawing Data Prep ---
-            if (state.currentClef === 'treble') {
-                const trebleClefMidiNotes = calculateTrebleClefNotes(state.highlightedMidiNotes);
-                finalNoteParts = trebleClefMidiNotes.map(getVexFlowNoteParts);
-                finalVexFlowNotes = finalNoteParts.map(p => p.vfNote);
-            } else if (state.currentClef === 'bass') {
-                const bassClefMidiNotes = calculateBassClefNotes(state.highlightedMidiNotes);
-                finalNoteParts = bassClefMidiNotes.map(getVexFlowNoteParts);
-                finalVexFlowNotes = finalNoteParts.map(p => p.vfNote);
-            } else {
-                 return; // Should not happen
-            }
+            // The notes in state.highlightedMidiNotes are now ALREADY TRANSPOSED to fit the staff.
+            finalNoteParts = state.highlightedMidiNotes.map(getVexFlowNoteParts);
+            finalVexFlowNotes = finalNoteParts.map(p => p.vfNote);
 
             // --- Draw the Staff ---
             drawStaff(container, state.currentClef, finalVexFlowNotes, finalNoteParts, keySig, isNonDiatonicOrCKey, width, height);
@@ -1214,19 +1206,33 @@
                 state.currentInversion = 0;
             }
 
-            // Calculate new highlights
+            // Step 1: Calculate the initial 'preferred' MIDI notes for the key/degree/inversion.
+            let rawMidiNotes;
             if (state.visualizationMode === 'chord') {
-                state.highlightedMidiNotes = calculateChordMidiNotes(
+                rawMidiNotes = calculateChordMidiNotes(
                     state.currentKeyIndex, 
                     state.currentDegree,
                     state.currentInversion 
                 );
             } else { // 'scale' mode
-                state.highlightedMidiNotes = calculateSingleScaleMidiNote(
+                rawMidiNotes = calculateSingleScaleMidiNote(
                     state.currentKeyIndex, 
                     state.currentDegree
                 );
             }
+
+            // Step 2: Transpose the raw notes to fit the selected staff's range.
+            // This transposed set is the FINAL MIDI NOTES used for BOTH the staff and the keyboard.
+            let finalMidiNotes;
+            if (state.currentClef === 'treble') {
+                finalMidiNotes = calculateTrebleClefNotes(rawMidiNotes);
+            } else if (state.currentClef === 'bass') {
+                finalMidiNotes = calculateBassClefNotes(rawMidiNotes);
+            } else {
+                 finalMidiNotes = rawMidiNotes;
+            }
+            
+            state.highlightedMidiNotes = finalMidiNotes;
             
             state.highlightedPitchClasses = state.highlightedMidiNotes.map(midi => midi % 12);
             
