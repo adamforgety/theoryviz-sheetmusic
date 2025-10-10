@@ -67,7 +67,8 @@
         </p>
 
         <div class="p-4 bg-gray-100 rounded-xl mb-6 shadow-inner border border-gray-200">
-            <div class="grid grid-cols-2 gap-4"> 
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4"> 
             
                 <div>
                     <label for="key-select" class="block text-xs font-medium text-gray-700 mb-1">Root Key</label>
@@ -82,7 +83,13 @@
                             class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
                         </select>
                 </div>
+                
+                <div id="accidental-switch-container">
+                    </div>
 
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mt-4"> 
                 <button id="mode-chord-btn" onclick="handleVisualizationModeChange('chord')"
                         class="viz-btn w-full text-base"> Chord View
                 </button>
@@ -133,33 +140,33 @@
 
         // --- CONSTANTS AND MAPPING ---
         
-        // Expanded list of key names for the dropdown
-        const KEY_DISPLAY_NAMES = [
-            "C", "C#", "Db", "D", "D#", "Eb", "E", 
-            "F", "F#", "Gb", "G", "G#", "Ab", "A", 
-            "A#", "Bb", "B"
+        // NEW: Combined key names for the dropdown
+        const KEY_COMBO_NAMES = [
+            "C", "C#/Db", "D", "D#/Eb", "E", 
+            "F", "F#/Gb", "G", "G#/Ab", "A", 
+            "A#/Bb", "B"
         ];
         
-        // Map to link display name back to the 0-11 pitch class (C=0, C#=1, Db=1, etc.)
+        // UPDATED: Map to link combined display name back to the 0-11 pitch class
         const KEY_TO_PITCH_CLASS = {
-            "C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, 
-            "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, 
-            "A#": 10, "Bb": 10, "B": 11
+            "C": 0, "C#/Db": 1, "D": 2, "D#/Eb": 3, "E": 4, 
+            "F": 5, "F#/Gb": 6, "G": 7, "G#/Ab": 8, "A": 9, 
+            "A#/Bb": 10, "B": 11
         };
-        // Sharp-based names (C, C#, D, D#, ...) - Used for default internal logic and non-flat keys
+        
+        // Sharp-based names (C, C#, D, D#, ...) - Used for default internal logic
         const KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
         
-        // Flat-based names (C, Db, D, Eb, ...) - Used for VexFlow note string generation in flat keys
+        // Flat-based names (c, db, d, eb, ...) - Used for VexFlow note string generation when flat preference is selected
         const FLAT_KEYS = ["c", "db", "d", "eb", "e", "f", "gb", "g", "ab", "a", "bb", "b"];
-        // Sharp-based names (c, c#, d, d#, ...) - Used for VexFlow note string generation in sharp keys
+        // Sharp-based names (c, c#, d, d#, ...) - Used for VexFlow note string generation when sharp preference is selected
         const SHARP_KEYS = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];
         
-        // Flat root keys that mandate flat spelling for the staff
-        const FLAT_ROOT_KEYS = ['Db', 'Eb', 'Gb', 'Ab', 'Bb']; 
+        // Removed FLAT_ROOT_KEYS as the accidental preference switch now handles spelling.
 
         const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11]; 
         
-        // VexFlow Key Signature Map 
+        // VexFlow Key Signature Map (Mixed sharps/flats for proper VexFlow rendering)
         const KEY_SIGNATURE_MAP = [
             'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'
         ];
@@ -250,7 +257,7 @@
 
         // --- STATE ---
         let state = {
-            currentKeyName: 'C', // Store the selected key name (e.g., 'Db')
+            currentKeyName: 'C', // This will be the combined name, e.g., 'C#/Db'
             currentKeyIndex: 0, // C is default (pitch class 0)
             currentModeId: 'major', 
             currentDegree: 1, 
@@ -259,7 +266,8 @@
             highlightedMidiNotes: [], 
             isCenteringEnabled: true, 
             visualizationMode: 'scale',
-            currentClef: 'treble' 
+            currentClef: 'treble',
+            accidentalPreference: 'sharp' // NEW: 'sharp' or 'flat'
         };
 
         // --- CORE MUSIC THEORY LOGIC ---
@@ -299,8 +307,9 @@
             }
             
             const highlightRootIndex = (state.currentKeyIndex + degreeInterval) % 12;
-            // The highlight note name is derived from the internal KEYS array (C, C#, D...)
-            const highlightRootName = KEYS[highlightRootIndex]; 
+            
+            // The highlight note name uses the accidental preference for spelling
+            const highlightRootName = getKeyboardNoteName(highlightRootIndex, state.currentKeyName); 
             
             const degreeIndex = (degree === 8) ? 0 : degree - 1;
 
@@ -354,15 +363,13 @@
             }
             // --- END TONIC CALCULATION ---
             
-            // --- NEW FIX: Shift base octave down for Bass Clef in Chord View ---
+            // --- Fix: Shift base octave down for Bass Clef in Chord View ---
             if (state.currentClef === 'bass' && state.visualizationMode === 'chord') {
-                // If the chord root is C4 or higher (tonicMidi >= 60), shift it down to C3 or lower.
-                // This ensures the keyboard visualization aligns with the typical bass clef range.
                 if (tonicMidi >= 60) {
                     tonicMidi -= 12;
                 }
             }
-            // --- END NEW FIX ---
+            // --- END FIX ---
 
 
             if (!mode.isDiatonic || mode.intervals.length < 7 || state.visualizationMode === 'scale') {
@@ -491,7 +498,6 @@
         /**
          * UPDATED Bass Clef Logic: Start at lowest, climb high, then drop.
          * Staff Boundary: C2 (36) to E4 (64).
-         * This mirrors the logic of calculateTrebleClefNotes using the correct Bass Clef boundaries.
          */
         function calculateBassClefNotes(midiNotes) {
             if (midiNotes.length === 0) return [];
@@ -536,21 +542,21 @@
 
         /**
          * Converts MIDI note to VexFlow string and identifies required accidental.
+         * The spelling is determined by state.accidentalPreference.
          * Returns { vfNote: 'c/4', accidental: '#' | 'b' | '' }
          */
         function getVexFlowNoteParts(midi) {
             const pitchClass = midi % 12;
             const octave = Math.floor(midi / 12) - 1; 
-            const currentKeyName = state.currentKeyName;
             
             let baseNoteName;
             let requiredAccidental = ''; 
 
-            // 1. Determine the correct spelling (sharp or flat) for the pitch class.
-            const isFlatKey = FLAT_ROOT_KEYS.includes(currentKeyName);
+            // 1. Determine the correct spelling (sharp or flat) for the pitch class based on preference.
+            const isFlatPreference = state.accidentalPreference === 'flat';
             
             // Use the raw sharp/flat names (c, c#, d, db, etc.) to figure out the required accidental
-            const rawNoteName = isFlatKey ? FLAT_KEYS[pitchClass] : SHARP_KEYS[pitchClass];
+            const rawNoteName = isFlatPreference ? FLAT_KEYS[pitchClass] : SHARP_KEYS[pitchClass];
 
             if (rawNoteName.length > 1) {
                 baseNoteName = rawNoteName.charAt(0); // e.g., 'c' from 'c#' or 'd' from 'db'
@@ -571,36 +577,18 @@
         function getVexFlowKeySignature() {
             const mode = getCurrentMode();
             const modeId = state.currentModeId;
-            const currentKeyName = state.currentKeyName; // Selected key name string
+            const keyIndex = state.currentKeyIndex; 
 
             // Diatonic 7-note scales (Major and Natural Minor) get a key signature
             if (mode.isDiatonic && mode.intervals.length === 7) {
-                let keyIndex = state.currentKeyIndex; // 0-11 pitch class
-
+                let targetIndex = keyIndex;
                 if (modeId === 'natural_minor' || modeId === 'aeolian') {
                     // Find the pitch class index of the relative major key (3 semitones up)
-                    const relativeMajorIndex = (keyIndex + 3) % 12;
-                    
-                    // If the relative major is one of the flat keys, use that name for the signature.
-                    const flatKeysInMap = ['Eb', 'Ab', 'Bb']; 
-                    if (flatKeysInMap.includes(KEY_SIGNATURE_MAP[relativeMajorIndex])) {
-                        return KEY_SIGNATURE_MAP[relativeMajorIndex];
-                    }
-                    
-                    // Fallback to the standard KEY_SIGNATURE_MAP spelling for the relative major
-                    return KEY_SIGNATURE_MAP[relativeMajorIndex];
-
-                } else { 
-                    // Major Key
-                    
-                    // Override the standard map lookup if the user explicitly chose a flat key.
-                    if (FLAT_ROOT_KEYS.includes(currentKeyName)) {
-                        return currentKeyName;
-                    }
+                    targetIndex = (keyIndex + 3) % 12;
                 }
                 
-                // Default: Use the key name from the standard 0-11 pitch class map.
-                return KEY_SIGNATURE_MAP[keyIndex];
+                // Use VexFlow's standard mixed sharp/flat key name for the signature
+                return KEY_SIGNATURE_MAP[targetIndex]; 
 
             } else {
                 // All other modes/scales (e.g., pentatonic, harmonic minor) get no key signature
@@ -643,9 +631,6 @@
             });
             
             // Add accidentals if necessary
-            // We use the flag check to determine if we need to manually add all accidentals 
-            // because VexFlow's built-in key signature logic won't handle the raised 7th 
-            // in harmonic minor correctly, or explicit sharps/flats in non-diatonic scales.
             if (isNonDiatonicOrCKey) {
                 notePartsData.forEach((part, index) => {
                     const accidentalType = part.accidental; // '#' or 'b'
@@ -709,7 +694,7 @@
         
         /**
          * Returns the correctly spelled note name (sharp or flat) for a MIDI note/pitch class,
-         * based on the root key currently selected.
+         * based on the accidental preference.
          */
         function getKeyboardNoteName(pitchClass, currentKeyName) {
             // White keys (C, D, E, F, G, A, B) are always spelled the same.
@@ -725,30 +710,21 @@
                 return KEYS[pitchClass]; 
             }
 
-            // Decide whether to use flat spelling
-            const shouldUseFlatSpelling = FLAT_ROOT_KEYS.includes(currentKeyName);
+            // Decide whether to use flat spelling based on preference
+            const shouldUseFlatSpelling = state.accidentalPreference === 'flat';
 
             if (shouldUseFlatSpelling) {
                 return enharmonicPair.flat;
             } else {
-                // Use sharp spelling for all other keys 
                 return enharmonicPair.sharp;
             }
         }
         
         /**
          * Calculates the 0-based index of a white key, counting from START_MIDI (A0).
-         * A0 (21) is the first white key for an 88-key piano.
          */
         function getWhiteKeyIndex(midi) {
-             // The first white key is A0 (21). The first C key is C1 (24).
-             // Since C is the start of the pattern, we normalize by shifting everything
-             // so C is the start of the scale (pitch class 0)
              const midiOffset = midi - START_MIDI; // 0-based index from A0
-             
-             // Count of white keys from A0 to C8: 52 keys
-             // White key pitch classes: 0, 2, 4, 5, 7, 9, 11
-             // Black key pitch classes: 1, 3, 6, 8, 10
              
              let count = 0;
              for (let i = START_MIDI; i <= midi; i++) {
@@ -758,7 +734,6 @@
                  }
              }
              // The 0-based index is count - 1. 
-             // (e.g., A0 is the 1st white key, index 0. C8 is the 52nd, index 51)
              return count - 1; 
         }
 
@@ -1039,10 +1014,35 @@
         
         function renderKeySelect() {
             const select = document.getElementById('key-select');
-            select.innerHTML = KEY_DISPLAY_NAMES.map((keyName) => {
+            // Use the new KEY_COMBO_NAMES
+            select.innerHTML = KEY_COMBO_NAMES.map((keyName) => {
                 const isSelected = keyName === state.currentKeyName;
                 return `<option value="${keyName}" ${isSelected ? 'selected' : ''}>${keyName}</option>`;
             }).join('');
+        }
+        
+        /**
+         * Renders the accidental preference switch. (NEW)
+         */
+        function renderAccidentalSwitch() {
+            const container = document.getElementById('accidental-switch-container');
+            const isSharp = state.accidentalPreference === 'sharp';
+            
+            container.innerHTML = `
+                <label class="block text-xs font-medium text-gray-700 mb-1">Accidental Spelling</label>
+                <div class="flex border border-gray-300 rounded-lg shadow-sm overflow-hidden bg-white">
+                    <button onclick="handleAccidentalPreferenceChange('sharp')"
+                            class="flex-1 py-2 px-3 text-sm font-semibold transition duration-150 
+                                ${isSharp ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}">
+                        Sharp (#)
+                    </button>
+                    <button onclick="handleAccidentalPreferenceChange('flat')"
+                            class="flex-1 py-2 px-3 text-sm font-semibold transition duration-150 
+                                ${!isSharp ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}">
+                        Flat (b)
+                    </button>
+                </div>
+            `;
         }
         
         /**
@@ -1238,6 +1238,7 @@
             
             // Render UI components
             renderKeySelect();
+            renderAccidentalSwitch(); // NEW: Render the accidental switch
             renderChordButtons();
             renderStaffHeader(); // Updates the consolidated header text
             renderStepVisualizer(); 
@@ -1265,6 +1266,11 @@
         function handleClefChange(clef) {
             state.currentClef = clef;
             updateUI();
+        }
+        
+        function handleAccidentalPreferenceChange(preference) {
+             state.accidentalPreference = preference;
+             updateUI();
         }
 
         function handleDegreeChange(degree) {
