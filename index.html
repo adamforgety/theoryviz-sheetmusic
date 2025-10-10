@@ -353,6 +353,17 @@
                 tonicMidi = 48 + keyIndex; // G3 (55) to B3 (59)
             }
             // --- END TONIC CALCULATION ---
+            
+            // --- NEW FIX: Shift base octave down for Bass Clef in Chord View ---
+            if (state.currentClef === 'bass' && state.visualizationMode === 'chord') {
+                // If the chord root is C4 or higher (tonicMidi >= 60), shift it down to C3 or lower.
+                // This ensures the keyboard visualization aligns with the typical bass clef range.
+                if (tonicMidi >= 60) {
+                    tonicMidi -= 12;
+                }
+            }
+            // --- END NEW FIX ---
+
 
             if (!mode.isDiatonic || mode.intervals.length < 7 || state.visualizationMode === 'scale') {
                  return calculateSingleScaleMidiNote(keyIndex, degree);
