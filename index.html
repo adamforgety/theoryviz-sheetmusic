@@ -135,7 +135,7 @@
     </div>
 
     <script>
-        // --- VEXFLOW ALIASES (New) ---
+        // --- VEXFLOW ALIASES ---
         const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental } = Vex.Flow;
 
         // --- CONSTANTS AND MAPPING ---
@@ -147,7 +147,6 @@
             "A#/Bb", "B"
         ];
         
-        // UPDATED: Map to link combined display name back to the 0-11 pitch class
         const KEY_TO_PITCH_CLASS = {
             "C": 0, "C#/Db": 1, "D": 2, "D#/Eb": 3, "E": 4, 
             "F": 5, "F#/Gb": 6, "G": 7, "G#/Ab": 8, "A": 9, 
@@ -166,16 +165,15 @@
         const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11]; 
         
         // VexFlow Key Signature Map (Mixed sharps/flats for proper VexFlow rendering)
-        // This is used to map the Root Key Index (0-11) to the key signature VexFlow expects for Ionian/Aeolian modes.
         const KEY_SIGNATURE_MAP = [
             'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'
         ];
         
-        // Mapping from Key Index (Pitch Class) to the number of sharps (+) or flats (-)
-        // C (0) = 0, G (7) = 1#, F (5) = 1b, D (2) = 2#, Bb (10) = 2b, etc.
-        const KEY_TO_ACCIDENTAL_COUNT = [
-            0, 7, 2, -3, 4, -1, 6, 1, -4, 3, -2, 5
-        ];
+        // Helper to determine the *natural* (white key) note name for a pitch class (0-11)
+        const PITCH_CLASS_TO_NATURAL = {
+            0: 'c', 1: 'c', 2: 'd', 3: 'd', 4: 'e', 5: 'f',
+            6: 'f', 7: 'g', 8: 'g', 9: 'a', 10: 'a', 11: 'b'
+        };
 
         const SCALE_MODES = {
             'major': {
@@ -187,9 +185,7 @@
                 chordSteps: [0, 2, 4], 
                 degrees: 8, 
                 isDiatonic: true,
-                // The Major scale starting on index `keyIndex` uses the key signature for `KEY_SIGNATURE_MAP[keyIndex]`
                 keySignatureRootOffset: 0, 
-                // The scale has all notes matching the key signature
                 accidentals: [] 
             },
             'natural_minor': {
@@ -201,9 +197,7 @@
                 chordSteps: [0, 2, 4],
                 degrees: 8,
                 isDiatonic: true,
-                // The Natural Minor scale starting on index `keyIndex` uses the key signature of the Major key 3 semitones up.
-                // e.g., A natural minor (9) has the key signature of C major (0). Offset: 9 -> 0 is -9 semitones, or +3.
-                keySignatureRootOffset: 3, // A natural minor uses C major key signature
+                keySignatureRootOffset: 3, 
                 accidentals: [] 
             },
             'harmonic_minor': {
@@ -214,10 +208,10 @@
                 qualities: ["i", "ii°", "III+", "iv", "V", "VI", "vii°", "viii (i)"],
                 chordSteps: [0, 2, 4],
                 degrees: 8, 
-                isDiatonic: true, // Still diatonic in structure
-                keySignatureRootOffset: 3, // Uses the same key signature as natural minor (relative major)
-                // The 7th degree is raised relative to the natural minor scale/key signature.
-                // The VexFlow accidental logic handles this (see getVexFlowNoteParts for details).
+                isDiatonic: true, 
+                keySignatureRootOffset: 3, 
+                // CRUCIAL: Specifies that the 7th degree is *raised* relative to the key signature (natural minor)
+                // A raised note is achieved by adding a '#' or natural to the note that is already in the key.
                 accidentals: [{ degree: 7, alteration: '+' }] 
             },
             'major_pentatonic': {
@@ -246,7 +240,6 @@
             }
         };
         
-        // MIDI note range updated to ALL 88 KEYS: A0 (21) to C8 (108)
         const START_MIDI = 21; // A0
         const END_MIDI = 108;  // C8
         
@@ -279,8 +272,8 @@
 
         // --- STATE ---
         let state = {
-            currentKeyName: 'C', // This will be the combined name, e.g., 'C#/Db'
-            currentKeyIndex: 0, // C is default (pitch class 0)
+            currentKeyName: 'C', 
+            currentKeyIndex: 0, 
             currentModeId: 'major', 
             currentDegree: 1, 
             currentInversion: 0, 
@@ -289,23 +282,25 @@
             isCenteringEnabled: true, 
             visualizationMode: 'scale',
             currentClef: 'treble',
-            accidentalPreference: 'sharp' // 'sharp' or 'flat'
+            accidentalPreference: 'sharp' 
         };
 
-        // --- CORE MUSIC THEORY LOGIC (Mostly Unchanged) ---
+        // --- CORE MUSIC THEORY LOGIC ---
         
         function getCurrentMode() {
             return SCALE_MODES[state.currentModeId];
         }
 
-        // ... (getSimplifiedKeyName, getDetailedHighlightName, calculateChordMidiNotes, 
-        // calculateSingleScaleMidiNote, calculateTrebleClefNotes, calculateBassClefNotes 
-        // are mostly unchanged and omitted for brevity) ...
+        /**
+         * Converts pitch class (0-11) and accidental preference to a raw note name (e.g., 'c#', 'db', 'c').
+         */
+        function getRawNoteName(pitchClass, preference) {
+             const noteNames = preference === 'flat' ? FLAT_KEYS : SHARP_KEYS;
+             return noteNames[pitchClass];
+        }
 
-        // The core logic for calculating MIDI notes (calculateChordMidiNotes and calculateSingleScaleMidiNote)
-        // determines the *actual* pitch (MIDI number) of the notes.
-        // The VexFlow functions will now figure out the *spelling* (e.g., F# vs Gb) 
-        // and which accidentals to display based on the selected key signature.
+        // ... (calculateChordMidiNotes, calculateSingleScaleMidiNote, 
+        // calculateTrebleClefNotes, calculateBassClefNotes are unchanged) ...
 
         /**
          * Calculates the specific MIDI notes for the selected chord, applying the current inversion.
@@ -412,8 +407,7 @@
         }
 
         /**
-         * Treble Clef Logic (User Approved): Start at lowest, climb high, then drop.
-         * Staff Boundary: B3 (59) to C6 (84).
+         * Treble Clef Logic 
          */
         function calculateTrebleClefNotes(midiNotes) {
             if (midiNotes.length === 0) return [];
@@ -447,8 +441,7 @@
 
 
         /**
-         * UPDATED Bass Clef Logic: Start at lowest, climb high, then drop.
-         * Staff Boundary: C2 (36) to E4 (64).
+         * Bass Clef Logic
          */
         function calculateBassClefNotes(midiNotes) {
             if (midiNotes.length === 0) return [];
@@ -485,67 +478,97 @@
 
         /**
          * Gets the key signature string VexFlow uses for the current scale.
-         * For Major/Minor scales, it calculates the relative major's key signature.
          */
         function getVexFlowKeySignature() {
             const mode = getCurrentMode();
             
             // For diatonic 7-note scales, calculate the key signature based on the offset.
             if (mode.isDiatonic && mode.intervals.length === 7) {
-                // Calculate the root of the relative major key (tonic + offset)
+                // The relative root index is (Tonic + KeySigOffset) mod 12
                 const relativeRootIndex = (state.currentKeyIndex + mode.keySignatureRootOffset) % 12;
                 
-                // Get the VexFlow key name (which correctly handles sharp/flat keys)
+                // Get the VexFlow key name
                 const keySignatureName = KEY_SIGNATURE_MAP[relativeRootIndex];
                 
                 return keySignatureName;
             }
             
-            // For non-diatonic or other scales (like pentatonic), use C major (no accidentals) 
-            // and rely on explicit accidentals later.
+            // For non-diatonic or other scales (like pentatonic), use C major
             return 'C'; 
         }
 
         /**
          * Converts MIDI note to VexFlow string and identifies required explicit accidental.
-         * This function now relies on VexFlow's internal logic to determine if an accidental is needed.
+         * The VexFlow logic for accidentals works on this principle:
+         * 1. Determine the correct **natural note name** (A-G) and octave from the MIDI pitch.
+         * 2. Determine the **required alteration** (#, b, n) needed to move the natural note *to* the actual MIDI pitch.
+         * 3. VexFlow compares this required alteration against the key signature. If they differ, it draws an explicit accidental.
+         * * The primary goal here is to correctly find the **required accidental** based on the chosen spelling preference.
          */
         function getVexFlowNoteParts(midi, mode) {
             const pitchClass = midi % 12;
             const octave = Math.floor(midi / 12) - 1; 
             
-            let vfNote;
-            let explicitAccidental = ''; // This will only be set if VexFlow needs one
-            
-            // 1. Determine the Base Note Name (e.g., C, D, E, F, G, A, B)
-            // The logic here is crucial: VexFlow expects a natural note name (a, b, c, d, e, f, g)
-            // and an accidental string ('#', 'b', 'n', '##', 'bb') to be applied.
-            
-            // Use the user's preference for the *spelling* of the note (e.g., F# vs Gb)
-            const isFlatPreference = state.accidentalPreference === 'flat';
-            const noteNames = isFlatPreference ? FLAT_KEYS : SHARP_KEYS;
-            const rawNoteName = noteNames[pitchClass];
+            const rawNoteName = getRawNoteName(pitchClass, state.accidentalPreference);
 
+            let vfNote;
+            let requiredAccidental = ''; 
+            
+            // Set the VexFlow note string (e.g., 'c/4')
             if (rawNoteName.length > 1) {
                 vfNote = `${rawNoteName.charAt(0)}/${octave}`;
-                // This is the explicit accidental *that VexFlow will use if it needs one*.
-                explicitAccidental = rawNoteName.slice(1); 
-                if (explicitAccidental === 'x') explicitAccidental = '##';
+                requiredAccidental = rawNoteName.slice(1); 
+                if (requiredAccidental === 'x') requiredAccidental = '##';
             } else {
                 vfNote = `${rawNoteName}/${octave}`;
             }
 
-            // 2. VexFlow's `StaveNote` will internally check the key signature (`stave.getKeySignature()`) 
-            // and the `vfNote` to determine if the `explicitAccidental` is necessary.
-            // If the note is *already* altered by the key signature (e.g., F# in G Major), 
-            // and the note is `f/4` with accidental `#`, VexFlow *suppresses* the accidental.
-            // If the note is *not* altered by the key signature (e.g., F# in C Major), VexFlow *shows* the `#`.
+            // --- CRITICAL FIX: Harmonic Minor Alterations ---
+            // If the scale has a special fixed accidental (like the raised 7th in Harmonic Minor),
+            // we must ensure the `requiredAccidental` reflects this, even if the pitch class
+            // would normally be spelled differently due to the key signature.
             
-            // We just need to ensure the VexFlow note string (`vfNote`) is a *natural* note 
-            // that is enharmonically correct for the pitch class, and that we provide
-            // the *required* accidental via the VexFlow Accidental object.
+            if (mode.id === 'harmonic_minor' && mode.intervals.length === 7) {
+                // 1. Calculate the degree of the current note (1st, 2nd, 3rd...)
+                const intervals = SCALE_MODES.natural_minor.intervals; // Use the natural minor intervals for degree indexing
+                const rootPitch = state.currentKeyIndex;
+                
+                // Find the index 'i' in the interval list that corresponds to the note's pitch class
+                const degreeIndex = intervals.findIndex(interval => (rootPitch + interval) % 12 === pitchClass);
+                const degree = degreeIndex + 1; // 1-based degree (1 to 7)
 
-            return { vfNote, accidental: explicitAccidental };
+                // 2. Check if this degree has a fixed alteration (e.g., the 7th)
+                const fixedAlteration = mode.accidentals.find(acc => acc.degree === degree);
+
+                if (fixedAlteration) {
+                    const naturalMidi = midi - (pitchClass - (PITCH_CLASS_TO_NATURAL[pitchClass].charCodeAt(0) - 'c'.charCodeAt(0)));
+                    
+                    // The raised 7th is 1 semitone higher than the natural minor's 7th degree (which is the natural minor's pitch)
+                    const requiredPitch = naturalMidi + 1; // e.g., if F is the natural note, we want F# or G flat pitch
+
+                    // Determine if the required note (F# in our example) is a sharp, flat, or natural relative to the natural note (F)
+                    const diff = midi - naturalMidi; // 0=Natural, 1=Sharp, -1=Flat, 2=Double Sharp, -2=Double Flat
+                    
+                    if (diff === 1) {
+                        requiredAccidental = '#';
+                    } else if (diff === 2) {
+                        requiredAccidental = '##';
+                    } else if (diff === -1) {
+                        requiredAccidental = 'b';
+                    } else if (diff === -2) {
+                        requiredAccidental = 'bb';
+                    } else {
+                        requiredAccidental = 'n'; // Must be a natural if the 7th in the natural minor is already flat
+                    }
+                    
+                    // We must use the natural note name for the base if an accidental is forced
+                    vfNote = `${PITCH_CLASS_TO_NATURAL[pitchClass]}/${octave}`;
+                }
+            }
+            // --- END CRITICAL FIX ---
+
+
+            return { vfNote, accidental: requiredAccidental };
         }
         
         /**
@@ -657,11 +680,6 @@
             }
         }
         
-        // ... (getWhiteKeyIndex, getKeyXPosition, getKeyCenterX, renderStepVisualizer, 
-        // drawKeyboard, renderKeySelect, renderAccidentalSwitch, renderModeSelect, 
-        // renderVisualizationModeButtons, renderChordButtons, renderStaffHeader are 
-        // essentially unchanged and omitted for brevity) ...
-
         /**
          * Calculates the 0-based index of a white key, counting from START_MIDI (A0).
          */
@@ -940,10 +958,6 @@
             }).join('');
         }
         
-        /**
-         * Renders the accidental preference switch. 
-         * NOTE: This only affects the KEYBOARD LABELS and the SPELLING of explicit VEXFLOW ACCIDENTALS.
-         */
         function renderAccidentalSwitch() {
             const container = document.getElementById('accidental-switch-container');
             const isSharp = state.accidentalPreference === 'sharp';
@@ -970,23 +984,23 @@
         function renderModeSelect() {
             const select = document.getElementById('mode-select');
             
-            const allModes = Object.entries(SCALE_MODES);
+            const allModes = Object.entries(SCALE_MODES).map(([id, mode]) => ({ id, ...mode }));
             let modesToRender = allModes;
 
             if (state.visualizationMode === 'chord') {
-                modesToRender = allModes.filter(([id, mode]) => 
+                modesToRender = allModes.filter(mode => 
                     mode.isDiatonic && mode.intervals.length === 7
                 );
                 
-                const currentModeExists = modesToRender.some(([id]) => id === state.currentModeId);
+                const currentModeExists = modesToRender.some(mode => mode.id === state.currentModeId);
                 if (!currentModeExists) {
                      state.currentModeId = 'major';
                      state.currentDegree = 1; 
                 }
             }
             
-            select.innerHTML = modesToRender.map(([id, mode]) => 
-                `<option value="${id}" ${id === state.currentModeId ? 'selected' : ''}>${mode.name}</option>`
+            select.innerHTML = modesToRender.map(mode => 
+                `<option value="${mode.id}" ${mode.id === state.currentModeId ? 'selected' : ''}>${mode.name}</option>`
             ).join('');
         }
         
@@ -1081,7 +1095,61 @@
             headerElement.textContent = displayString;
         }
         
-        // --- HANDLERS (Unchanged) ---
+        function getSimplifiedKeyName() {
+            const rootName = state.currentKeyName;
+            const modeName = getCurrentMode().name;
+            return `${rootName} ${modeName.replace(/\s*\(.*\)/, '')}`; 
+        }
+
+        function getDetailedHighlightName() {
+            const mode = getCurrentMode();
+            const intervals = mode.intervals;
+            const degree = state.currentDegree;
+
+            let degreeInterval;
+            if (degree === 8) {
+                degreeInterval = 12;
+            } else {
+                if (degree > intervals.length) {
+                    degreeInterval = 0; 
+                } else {
+                    degreeInterval = intervals[degree - 1]; 
+                }
+            }
+            
+            const highlightRootIndex = (state.currentKeyIndex + degreeInterval) % 12;
+            
+            const highlightRootName = getKeyboardNoteName(highlightRootIndex, state.currentKeyName); 
+            
+            const degreeIndex = (degree === 8) ? 0 : degree - 1;
+
+            if (state.visualizationMode === 'chord' && mode.isDiatonic && mode.intervals.length === 7) {
+                const romanNumeral = mode.qualities[degreeIndex];
+                const quality = mode.triadQualities[degreeIndex];
+                
+                let inversionText = '';
+                if (state.currentInversion === 1) {
+                    inversionText = ' / 6';
+                } else if (state.currentInversion === 2) {
+                    inversionText = ' / 6/4';
+                }
+
+                return `${highlightRootName}${quality} (${romanNumeral})${inversionText}`;
+            } else {
+                let degreeText;
+                if (degree === 1) {
+                    degreeText = '1';
+                } else if (degree === 8) {
+                    degreeText = '8';
+                } else {
+                    degreeText = degree.toString();
+                }
+                
+                return `${highlightRootName} (${degreeText})`;
+            }
+        }
+
+        // --- HANDLERS ---
         
         function updateUI() {
             renderModeSelect(); 
