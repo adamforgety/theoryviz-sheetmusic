@@ -543,7 +543,7 @@
         /**
          * Converts MIDI note to VexFlow string and identifies required accidental.
          * The spelling is determined by state.accidentalPreference.
-         * Returns { vfNote: 'c/4', accidental: '#' | 'b' | '' }
+         * Returns { vfNote: 'c/4', accidental: '#' | 'b' | 'n' }
          */
         function getVexFlowNoteParts(midi) {
             const pitchClass = midi % 12;
@@ -563,6 +563,8 @@
                 requiredAccidental = rawNoteName.slice(1); // e.g., '#' or 'b'
             } else {
                 baseNoteName = rawNoteName; // e.g., 'c'
+                // FIX: Explicitly set accidental to 'n' for natural notes in the raw list
+                requiredAccidental = 'n'; 
             }
             
             // VexFlow note string is always just the base note and octave (e.g., 'c/4')
@@ -580,7 +582,7 @@
             const keyIndex = state.currentKeyIndex; 
 
             // Diatonic 7-note scales (Major and Natural Minor) get a key signature
-            if (mode.isDiatonic && mode.intervals.length === 7) {
+            if (mode.isDiatonic && mode.intervals.length === 7 && modeId !== 'harmonic_minor') {
                 let targetIndex = keyIndex;
                 if (modeId === 'natural_minor' || modeId === 'aeolian') {
                     // Find the pitch class index of the relative major key (3 semitones up)
@@ -591,7 +593,9 @@
                 return KEY_SIGNATURE_MAP[targetIndex]; 
 
             } else {
-                // All other modes/scales (e.g., pentatonic, harmonic minor) get no key signature
+                // All other modes/scales (e.g., pentatonic, harmonic minor, or when the user 
+                // explicitly prefers a spelling that conflicts with the key signature) 
+                // get no key signature.
                 return 'C'; 
             }
         }
@@ -630,19 +634,20 @@
                 clef: clef 
             });
             
-            // Add accidentals if necessary
-            if (isNonDiatonicOrCKey) {
+            // FIX: Use VexFlow's built-in accidental system to correctly display user preference
+            // when the key signature is 'C' or for non-diatonic scales.
+            // When keySig is 'C', accidentals must be added manually.
+            if (isNonDiatonicOrCKey || keySig === 'C') {
                 notePartsData.forEach((part, index) => {
-                    const accidentalType = part.accidental; // '#' or 'b'
-                    
-                    // We only explicitly add the accidental if the pitch is sharp or flat.
-                    if (accidentalType === '#') {
-                        note.addModifier(new Accidental("#"), index);
-                    } else if (accidentalType === 'b') {
-                        note.addModifier(new Accidental("b"), index);
+                    // Use the accidental symbol ('#', 'b', 'n') determined by getVexFlowNoteParts
+                    // VexFlow will automatically decide to draw the accidental symbol 
+                    // if it is different from the key signature's implied accidental.
+                    if (part.accidental) {
+                         note.addModifier(new Accidental(part.accidental), index);
                     }
                 });
             }
+
             
             // --- Voice and Drawing ---
             const voice = new Voice({ num_beats: 1, beat_value: 4 }); 
@@ -1026,18 +1031,6 @@
          */
         function renderAccidentalSwitch() {
             const container = document.getElementById('accidental-switch-container');
-            
-            // CORRECTED LOGIC: Only show the switch for enharmonic keys (e.g., C#/Db)
-            if (!state.currentKeyName.includes('/')) {
-                container.innerHTML = `
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Accidental Spelling</label>
-                    <p class="text-sm text-gray-500 py-2 px-3 border border-gray-300 rounded-lg bg-white shadow-sm transition">
-                        Sharp/Flat choice not applicable to ${state.currentKeyName}
-                    </p>
-                `;
-                return;
-            }
-            
             const isSharp = state.accidentalPreference === 'sharp';
             
             container.innerHTML = `
