@@ -77,15 +77,15 @@
                         </select>
                 </div>
 
-                <div id="accidental-switch-container">
-                </div>
-
                 <div>
                     <label for="mode-select" class="block text-xs font-medium text-gray-700 mb-1">Scale Type</label>
                     <select id="mode-select" onchange="handleModeChange(event.target.value)"
                             class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
                         </select>
                 </div>
+                
+                <div id="accidental-switch-container">
+                    </div>
 
             </div>
             
@@ -166,9 +166,10 @@
 
         const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11]; 
         
-        // NEW FIX: Separate VexFlow Key Signature Maps for Sharp and Flat preference
-        const SHARP_KEY_SIGNATURES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-        const FLAT_KEY_SIGNATURES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+        // VexFlow Key Signature Map (Mixed sharps/flats for proper VexFlow rendering)
+        const KEY_SIGNATURE_MAP = [
+            'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'
+        ];
 
         const SCALE_MODES = {
             'major': {
@@ -572,7 +573,6 @@
         
         /**
          * Calculates the appropriate key signature string for VexFlow.
-         * * FIX: Now uses accidentalPreference to select between sharp and flat key signatures.
          */
         function getVexFlowKeySignature() {
             const mode = getCurrentMode();
@@ -587,12 +587,8 @@
                     targetIndex = (keyIndex + 3) % 12;
                 }
                 
-                // --- FIX: Use accidentalPreference to select the enharmonic key signature ---
-                const isSharpPreference = state.accidentalPreference === 'sharp';
-                const keySigMap = isSharpPreference ? SHARP_KEY_SIGNATURES : FLAT_KEY_SIGNATURES;
-                
-                return keySigMap[targetIndex]; 
-                // --- END FIX ---
+                // Use VexFlow's standard mixed sharp/flat key name for the signature
+                return KEY_SIGNATURE_MAP[targetIndex]; 
 
             } else {
                 // All other modes/scales (e.g., pentatonic, harmonic minor) get no key signature
@@ -774,7 +770,7 @@
             const BKW = KEYBOARD_CONFIG.BLACK_KEY_WIDTH;
             return x + (isWhite ? WKW / 2 : BKW / 2);
         }
-        
+
         /**
          * Renders the W/H/1.5 step indicators in the track above the keyboard.
          */
@@ -806,16 +802,16 @@
                 
                 const currentNoteMidi = tonicMidi + scaleIntervals[i];
 
-                let stepInSemotones;
+                let stepInSemitones;
                 if (i === scaleSteps.length - 1) {
-                    stepInSemotones = 12 - scaleIntervals[i];
+                    stepInSemitones = 12 - scaleIntervals[i];
                 } else {
-                    stepInSemotones = scaleIntervals[i + 1] - scaleIntervals[i];
+                    stepInSemitones = scaleIntervals[i + 1] - scaleIntervals[i];
                 }
 
-                if (stepInSemotones <= 0) continue; 
+                if (stepInSemitones <= 0) continue; 
 
-                const nextNoteMidi = currentNoteMidi + stepInSemotones;
+                const nextNoteMidi = currentNoteMidi + stepInSemitones;
                 
                 // Ensure we don't try to draw steps for notes outside the rendered range
                 if (currentNoteMidi < START_MIDI || nextNoteMidi > END_MIDI) continue;
@@ -1030,6 +1026,18 @@
          */
         function renderAccidentalSwitch() {
             const container = document.getElementById('accidental-switch-container');
+            
+            // CORRECTED LOGIC: Only show the switch for enharmonic keys (e.g., C#/Db)
+            if (!state.currentKeyName.includes('/')) {
+                container.innerHTML = `
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Accidental Spelling</label>
+                    <p class="text-sm text-gray-500 py-2 px-3 border border-gray-300 rounded-lg bg-white shadow-sm transition">
+                        Sharp/Flat choice not applicable to ${state.currentKeyName}
+                    </p>
+                `;
+                return;
+            }
+            
             const isSharp = state.accidentalPreference === 'sharp';
             
             container.innerHTML = `
