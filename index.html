@@ -135,18 +135,19 @@
     </div>
 
     <script>
-        // --- VEXFLOW ALIASES ---
+        // --- VEXFLOW ALIASES (New) ---
         const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental } = Vex.Flow;
 
         // --- CONSTANTS AND MAPPING ---
         
-        // Combined key names for the dropdown
+        // NEW: Combined key names for the dropdown
         const KEY_COMBO_NAMES = [
             "C", "C#/Db", "D", "D#/Eb", "E", 
             "F", "F#/Gb", "G", "G#/Ab", "A", 
             "A#/Bb", "B"
         ];
         
+        // UPDATED: Map to link combined display name back to the 0-11 pitch class
         const KEY_TO_PITCH_CLASS = {
             "C": 0, "C#/Db": 1, "D": 2, "D#/Eb": 3, "E": 4, 
             "F": 5, "F#/Gb": 6, "G": 7, "G#/Ab": 8, "A": 9, 
@@ -161,23 +162,17 @@
         // Sharp-based names (c, c#, d, d#, ...) - Used for VexFlow note string generation when sharp preference is selected
         const SHARP_KEYS = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];
         
-        // Standard White Keys (Pitch Classes)
+        // Removed FLAT_ROOT_KEYS as the accidental preference switch now handles spelling.
+
         const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11]; 
         
         // VexFlow Key Signature Map (Mixed sharps/flats for proper VexFlow rendering)
         const KEY_SIGNATURE_MAP = [
             'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'
         ];
-        
-        // Helper to determine the *natural* (white key) note name for a pitch class (0-11)
-        const PITCH_CLASS_TO_NATURAL = {
-            0: 'c', 1: 'c', 2: 'd', 3: 'd', 4: 'e', 5: 'f',
-            6: 'f', 7: 'g', 8: 'g', 9: 'a', 10: 'a', 11: 'b'
-        };
 
         const SCALE_MODES = {
             'major': {
-                id: 'major',
                 name: 'Ionian (Major)',
                 intervals: [0, 2, 4, 5, 7, 9, 11],
                 steps: ["W", "W", "H", "W", "W", "W", "H"],
@@ -185,12 +180,9 @@
                 qualities: ["I", "ii", "iii", "IV", "V", "vi", "vii°", "VIII (I)"], 
                 chordSteps: [0, 2, 4], 
                 degrees: 8, 
-                isDiatonic: true,
-                keySignatureRootOffset: 0, 
-                accidentals: [] 
+                isDiatonic: true
             },
             'natural_minor': {
-                id: 'natural_minor',
                 name: 'Aeolian (Natural Minor)',
                 intervals: [0, 2, 3, 5, 7, 8, 10],
                 steps: ["W", "H", "W", "W", "H", "W", "W"],
@@ -198,12 +190,9 @@
                 qualities: ["i", "ii°", "III", "iv", "v", "VI", "VII", "viii (i)"],
                 chordSteps: [0, 2, 4],
                 degrees: 8,
-                isDiatonic: true,
-                keySignatureRootOffset: 3, 
-                accidentals: [] 
+                isDiatonic: true
             },
             'harmonic_minor': {
-                id: 'harmonic_minor',
                 name: 'Harmonic Minor',
                 intervals: [0, 2, 3, 5, 7, 8, 11], 
                 steps: ["W", "H", "W", "W", "H", "1.5", "H"], 
@@ -211,13 +200,9 @@
                 qualities: ["i", "ii°", "III+", "iv", "V", "VI", "vii°", "viii (i)"],
                 chordSteps: [0, 2, 4],
                 degrees: 8, 
-                isDiatonic: true, 
-                keySignatureRootOffset: 3, 
-                // CRUCIAL: Specifies that the 7th degree is *raised* relative to the key signature (natural minor)
-                accidentals: [{ degree: 7, alteration: '+' }] 
+                isDiatonic: true
             },
             'major_pentatonic': {
-                id: 'major_pentatonic',
                 name: 'Major Pentatonic',
                 intervals: [0, 2, 4, 7, 9],
                 steps: ["W", "W", "1.5", "W", "1.5"], 
@@ -225,12 +210,9 @@
                 qualities: ["1", "2", "3", "4", "5"], 
                 chordSteps: [0], 
                 degrees: 5,
-                isDiatonic: false,
-                keySignatureRootOffset: 0, 
-                accidentals: []
+                isDiatonic: false
             },
             'minor_pentatonic': {
-                id: 'minor_pentatonic',
                 name: 'Minor Pentatonic',
                 intervals: [0, 3, 5, 7, 10],
                 steps: ["1.5", "W", "W", "1.5", "W"],
@@ -238,12 +220,11 @@
                 qualities: ["1", "2", "3", "4", "5"], 
                 chordSteps: [0],
                 degrees: 5,
-                isDiatonic: false,
-                keySignatureRootOffset: 3, 
-                accidentals: []
+                isDiatonic: false
             }
         };
         
+        // MIDI note range updated to ALL 88 KEYS: A0 (21) to C8 (108)
         const START_MIDI = 21; // A0
         const END_MIDI = 108;  // C8
         
@@ -276,17 +257,17 @@
 
         // --- STATE ---
         let state = {
-            currentKeyName: 'C', 
-            currentKeyIndex: 0, 
+            currentKeyName: 'C', // This will be the combined name, e.g., 'C#/Db'
+            currentKeyIndex: 0, // C is default (pitch class 0)
             currentModeId: 'major', 
             currentDegree: 1, 
             currentInversion: 0, 
             highlightedPitchClasses: [], 
             highlightedMidiNotes: [], 
             isCenteringEnabled: true, 
-            visualizationMode: 'chord', // Default to chord for initial load visibility
+            visualizationMode: 'scale',
             currentClef: 'treble',
-            accidentalPreference: 'sharp' 
+            accidentalPreference: 'sharp' // NEW: 'sharp' or 'flat'
         };
 
         // --- CORE MUSIC THEORY LOGIC ---
@@ -296,11 +277,70 @@
         }
 
         /**
-         * Converts pitch class (0-11) and accidental preference to a raw note name (e.g., 'c#', 'db', 'c').
+         * Gets the simplified name of the current key and mode (e.g., "C Ionian").
          */
-        function getRawNoteName(pitchClass, preference) {
-             const noteNames = preference === 'flat' ? FLAT_KEYS : SHARP_KEYS;
-             return noteNames[pitchClass];
+        function getSimplifiedKeyName() {
+            const rootName = state.currentKeyName;
+            const modeName = getCurrentMode().name;
+            return `${rootName} ${modeName.replace(/\s*\(.*\)/, '')}`; 
+        }
+
+
+        /**
+         * Calculates the full, detailed name for the selected chord/note, including inversion.
+         */
+        function getDetailedHighlightName() {
+            const mode = getCurrentMode();
+            const intervals = mode.intervals;
+            const degree = state.currentDegree;
+
+            // Calculate the interval offset 
+            let degreeInterval;
+            if (degree === 8) {
+                degreeInterval = 12;
+            } else {
+                if (degree > intervals.length) {
+                    degreeInterval = 0; 
+                } else {
+                    degreeInterval = intervals[degree - 1]; 
+                }
+            }
+            
+            const highlightRootIndex = (state.currentKeyIndex + degreeInterval) % 12;
+            
+            // The highlight note name uses the accidental preference for spelling
+            const highlightRootName = getKeyboardNoteName(highlightRootIndex, state.currentKeyName); 
+            
+            const degreeIndex = (degree === 8) ? 0 : degree - 1;
+
+            if (state.visualizationMode === 'chord' && mode.isDiatonic && mode.intervals.length === 7) {
+                // Chord selected: CMaj (I) (Root position)
+                const romanNumeral = mode.qualities[degreeIndex];
+                const quality = mode.triadQualities[degreeIndex];
+                
+                let inversionText = '';
+                if (state.currentInversion === 1) {
+                    inversionText = ' / 6';
+                } else if (state.currentInversion === 2) {
+                    inversionText = ' / 6/4';
+                }
+
+                // e.g., "CMaj (I) / 6"
+                return `${highlightRootName}${quality} (${romanNumeral})${inversionText}`;
+            } else {
+                // Note selected: C (1)
+                let degreeText;
+                if (degree === 1) {
+                    degreeText = '1';
+                } else if (degree === 8) {
+                    degreeText = '8';
+                } else {
+                    degreeText = degree.toString();
+                }
+                
+                // e.g., "C (1)"
+                return `${highlightRootName} (${degreeText})`;
+            }
         }
 
         /**
@@ -314,19 +354,22 @@
             const scaleDegreeIndex = (degree === 8) ? 0 : degree - 1; 
 
             // --- Determine the base MIDI for the Tonic (Root Key) of the scale ---
+            // Centering Logic: Targets C4 (MIDI 60) to B4 (MIDI 71) range for the root note.
             let tonicMidi;
-            if (keyIndex >= 0 && keyIndex <= 6) { 
-                tonicMidi = 60 + keyIndex; 
-            } else { 
-                tonicMidi = 48 + keyIndex; 
+            if (keyIndex >= 0 && keyIndex <= 6) { // C (0) to F# (6)
+                tonicMidi = 60 + keyIndex; // C4 (60) to F#4 (66)
+            } else { // G (7) to B (11)
+                tonicMidi = 48 + keyIndex; // G3 (55) to B3 (59)
             }
+            // --- END TONIC CALCULATION ---
             
+            // --- Fix: Shift base octave down for Bass Clef in Chord View ---
             if (state.currentClef === 'bass' && state.visualizationMode === 'chord') {
                 if (tonicMidi >= 60) {
                     tonicMidi -= 12;
                 }
             }
-            // --- END TONIC CALCULATION ---
+            // --- END FIX ---
 
 
             if (!mode.isDiatonic || mode.intervals.length < 7 || state.visualizationMode === 'scale') {
@@ -336,6 +379,7 @@
             const stepsInChord = mode.chordSteps; 
             
             const rootIntervalFromTonic = scaleIntervals[scaleDegreeIndex];
+            // The lowest MIDI note of the chord, based on the scale's root (tonicMidi) and the degree offset
             const lowestRootMidi = tonicMidi + rootIntervalFromTonic;
             
             const scaleLength = mode.intervals.length; 
@@ -388,27 +432,31 @@
             }
 
             // --- Determine the base MIDI for the Tonic (Root Key) of the scale ---
+            // Centering Logic: Targets C4 (MIDI 60) to B4 (MIDI 71) range for the root note.
             let tonicMidi;
-            if (keyIndex >= 0 && keyIndex <= 6) { 
-                tonicMidi = 60 + keyIndex; 
-            } else { 
-                tonicMidi = 48 + keyIndex; 
+            if (keyIndex >= 0 && keyIndex <= 6) { // C (0) to F# (6)
+                tonicMidi = 60 + keyIndex; // C4 (60) to F#4 (66)
+            } else { // G (7) to B (11)
+                tonicMidi = 48 + keyIndex; // G3 (55) to B3 (59)
             }
             // --- END TONIC CALCULATION ---
 
             let rootMidi = tonicMidi + intervalOffset;
             
+            // If in Bass Clef and Scale View, shift the base octave down by one octave to center it naturally.
             if (state.currentClef === 'bass' && state.visualizationMode === 'scale') {
                 if (rootMidi >= 60) {
                      rootMidi -= 12;
                 }
             }
 
+
             return [rootMidi].filter(midi => midi >= START_MIDI && midi <= END_MIDI);
         }
 
         /**
-         * Treble Clef Logic 
+         * Treble Clef Logic (User Approved): Start at lowest, climb high, then drop.
+         * Staff Boundary: B3 (59) to C6 (84).
          */
         function calculateTrebleClefNotes(midiNotes) {
             if (midiNotes.length === 0) return [];
@@ -421,18 +469,24 @@
             
             let shift = 0;
 
+            // Step 1: Find the minimum *upward* shift needed to get the lowest note on the staff.
             while (lowestOriginal + shift < MIN_MIDI) {
                 shift += 12;
             }
             
+            // Step 2: Now that the lowest note is visible, check the highest note. 
+            // Apply *downward* shifts until the highest note is no longer exceeding the max boundary.
             while (highestOriginal + shift > MAX_MIDI) {
                 shift -= 12;
             }
 
+            // Safety Check: If the last downward shift pushed the lowest note below the MIN_MIDI, 
+            // revert the last shift to keep the note on the staff.
             if (lowestOriginal + shift < MIN_MIDI) {
                 shift += 12;
             }
 
+            // Apply the final shift and filter out any notes that still fall outside
             const finalNotes = midiNotes
                 .map(midi => midi + shift)
                 .filter(midi => midi >= MIN_MIDI && midi <= MAX_MIDI);
@@ -442,7 +496,8 @@
 
 
         /**
-         * Bass Clef Logic
+         * UPDATED Bass Clef Logic: Start at lowest, climb high, then drop.
+         * Staff Boundary: C2 (36) to E4 (64).
          */
         function calculateBassClefNotes(midiNotes) {
             if (midiNotes.length === 0) return [];
@@ -455,18 +510,26 @@
             
             let shift = 0;
 
+            // Step 1: Find the minimum *upward* shift needed to get the lowest note on the staff (C2/36).
+            // This implements "start at the lowest point."
             while (lowestOriginal + shift < MIN_MIDI) {
                 shift += 12;
             }
             
+            // Step 2: Now that the lowest note is visible, check the highest note. 
+            // Apply *downward* shifts until the highest note is no longer exceeding the max boundary (E4/64).
+            // This implements "go to the highest point before breaking."
             while (highestOriginal + shift > MAX_MIDI) {
                 shift -= 12;
             }
 
+            // Safety Check: If the last downward shift pushed the lowest note below the MIN_MIDI, 
+            // revert the last shift to keep the note on the staff.
             if (lowestOriginal + shift < MIN_MIDI) {
                 shift += 12;
             }
 
+            // Apply the final shift and filter out any notes that still fall outside
             const finalNotes = midiNotes
                 .map(midi => midi + shift)
                 .filter(midi => midi >= MIN_MIDI && midi <= MAX_MIDI);
@@ -475,169 +538,120 @@
         }
 
         
-        // --- VEXFLOW RENDERING (Corrected) ---
+        // --- VEXFLOW RENDERING ---
 
         /**
-         * Gets the key signature string VexFlow uses for the current scale.
+         * Converts MIDI note to VexFlow string and identifies required accidental.
+         * The spelling is determined by state.accidentalPreference.
+         * Returns { vfNote: 'c/4', accidental: '#' | 'b' | '' }
          */
-        function getVexFlowKeySignature() {
-            const mode = getCurrentMode();
-            
-            // For diatonic 7-note scales, calculate the key signature based on the offset.
-            if (mode.isDiatonic && mode.intervals.length === 7) {
-                // The relative root index is (Tonic + KeySigOffset) mod 12
-                const relativeRootIndex = (state.currentKeyIndex + mode.keySignatureRootOffset) % 12;
-                
-                // Get the VexFlow key name
-                const keySignatureName = KEY_SIGNATURE_MAP[relativeRootIndex];
-                
-                return keySignatureName;
-            }
-            
-            // For non-diatonic or other scales (like pentatonic), use C major
-            return 'C'; 
-        }
-
-        /**
-         * Converts MIDI note to VexFlow string and identifies required explicit accidental.
-         */
-        function getVexFlowNoteParts(midi, mode) {
+        function getVexFlowNoteParts(midi) {
             const pitchClass = midi % 12;
             const octave = Math.floor(midi / 12) - 1; 
             
-            // 1. Determine the raw note name (e.g., 'c#', 'db', 'c') based on preference.
-            const rawNoteName = getRawNoteName(pitchClass, state.accidentalPreference);
-
-            let vfNote;
+            let baseNoteName;
             let requiredAccidental = ''; 
+
+            // 1. Determine the correct spelling (sharp or flat) for the pitch class based on preference.
+            const isFlatPreference = state.accidentalPreference === 'flat';
             
-            // Set the VexFlow note string (e.g., 'c/4') and the accidental that must be applied to get to the MIDI pitch.
+            // Use the raw sharp/flat names (c, c#, d, db, etc.) to figure out the required accidental
+            const rawNoteName = isFlatPreference ? FLAT_KEYS[pitchClass] : SHARP_KEYS[pitchClass];
+
             if (rawNoteName.length > 1) {
-                vfNote = `${rawNoteName.charAt(0)}/${octave}`;
-                requiredAccidental = rawNoteName.slice(1); 
-                if (requiredAccidental === 'x') requiredAccidental = '##';
+                baseNoteName = rawNoteName.charAt(0); // e.g., 'c' from 'c#' or 'd' from 'db'
+                requiredAccidental = rawNoteName.slice(1); // e.g., '#' or 'b'
             } else {
-                vfNote = `${rawNoteName}/${octave}`;
+                baseNoteName = rawNoteName; // e.g., 'c'
             }
-
-            // --- CRITICAL FIX: Harmonic Minor Alterations ---
-            if (mode.id === 'harmonic_minor' && mode.intervals.length === 7) {
-                // We check if this note's pitch matches the 7th degree's pitch.
-                const harmonicMinorIntervals = mode.intervals;
-                const naturalMinorIntervals = SCALE_MODES.natural_minor.intervals;
-                const rootPitch = state.currentKeyIndex;
-                
-                // The 7th degree is at index 6 (interval 11) in harmonic minor.
-                const seventhDegreeInterval = harmonicMinorIntervals[6];
-
-                // Calculate the actual pitch of the 7th degree (relative to the key's tonic)
-                const seventhDegreePitch = (rootPitch + seventhDegreeInterval) % 12;
-
-                if (pitchClass === seventhDegreePitch) {
-                    // This is the raised 7th note. We need to force the accidental.
-                    
-                    // 1. Find the natural note name corresponding to this pitch class (e.g., G for G#/Ab)
-                    const naturalNoteName = PITCH_CLASS_TO_NATURAL[pitchClass];
-                    vfNote = `${naturalNoteName}/${octave}`;
-
-                    // 2. The 7th degree in Natural Minor (the key signature's scale) is `naturalMinorIntervals[6]`.
-                    const naturalSeventhInterval = naturalMinorIntervals[6];
-                    
-                    // The difference in semitones between the current note and the natural minor's 7th note.
-                    const naturalMinorSeventhPitch = (rootPitch + naturalSeventhInterval) % 12;
-                    
-                    const alteration = (pitchClass - naturalMinorSeventhPitch + 12) % 12;
-
-                    // If the alteration is 0, the note is the same as the natural minor's 7th. It should be a natural or a flat.
-                    // If the alteration is 1, it's raised (e.g., G# vs G or G# vs Gb).
-                    // In Harmonic Minor, the 7th degree is *always* raised 1 semitone from the natural minor's 7th.
-                    
-                    // Instead of calculating alteration, just compare the current note to the natural note name
-                    // (the white key note for this pitch class).
-                    
-                    // Find the midi for the natural note (e.g., G4 for G#4)
-                    const naturalMidi = Math.floor(midi / 12) * 12 + (naturalNoteName.charCodeAt(0) - 'c'.charCodeAt(0));
-
-                    const diff = midi - naturalMidi; // 0=Natural, 1=Sharp, -1=Flat, 2=Double Sharp, -2=Double Flat
-                    
-                    if (diff === 1) {
-                        requiredAccidental = '#';
-                    } else if (diff === 2) {
-                        requiredAccidental = '##';
-                    } else if (diff === 0) {
-                        // This note is a natural, but the key signature might flatten it (e.g., E in C minor has a Bb key signature).
-                        // If E is the 7th degree, it's raised to a natural E from Eb (in C minor).
-                        // We must explicitly use 'n' if the note is a natural and its accidental is 'n'.
-                        requiredAccidental = 'n'; 
-                    } else if (diff === -1) {
-                        requiredAccidental = 'b';
-                    } else if (diff === -2) {
-                        requiredAccidental = 'bb';
-                    }
-                    
-                    // NOTE: This logic is complex because VexFlow's auto-accidental only works perfectly for
-                    // truly diatonic modes. This special case forces the correct spelling.
-                }
-            }
-            // --- END CRITICAL FIX ---
-
+            
+            // VexFlow note string is always just the base note and octave (e.g., 'c/4')
+            const vfNote = `${baseNoteName}/${octave}`;
 
             return { vfNote, accidental: requiredAccidental };
         }
         
         /**
+         * Calculates the appropriate key signature string for VexFlow.
+         */
+        function getVexFlowKeySignature() {
+            const mode = getCurrentMode();
+            const modeId = state.currentModeId;
+            const keyIndex = state.currentKeyIndex; 
+
+            // Diatonic 7-note scales (Major and Natural Minor) get a key signature
+            if (mode.isDiatonic && mode.intervals.length === 7) {
+                let targetIndex = keyIndex;
+                if (modeId === 'natural_minor' || modeId === 'aeolian') {
+                    // Find the pitch class index of the relative major key (3 semitones up)
+                    targetIndex = (keyIndex + 3) % 12;
+                }
+                
+                // Use VexFlow's standard mixed sharp/flat key name for the signature
+                return KEY_SIGNATURE_MAP[targetIndex]; 
+
+            } else {
+                // All other modes/scales (e.g., pentatonic, harmonic minor) get no key signature
+                return 'C'; 
+            }
+        }
+        
+        /**
          * Helper function to draw a single VexFlow staff into a container.
          */
-        const drawStaff = (container, clef, vfNotes, notePartsData, keySig, width, height) => {
+        const drawStaff = (container, clef, vfNotes, notePartsData, keySig, isNonDiatonicOrCKey, width, height) => {
                 
             if (vfNotes.length === 0) {
+                 // Display a message if no notes are left after transposition/filtering
                  container.innerHTML = `<p class="text-center text-gray-500 py-4">Notes are outside the ${clef} staff's target range even after auto-transposition.</p>`;
                  return;
             }
 
             const renderer = new Renderer(container, Renderer.Backends.SVG);
-            
-            // Use a minimum width for the renderer to prevent container issues.
-            const finalWidth = Math.max(width, 250); 
-            renderer.resize(finalWidth, height);
-            
+            renderer.resize(width, height);
             const context = renderer.getContext();
             context.clear(); 
             
             // --- Stave (Staff) Setup ---
-            const stave = new Stave(10, 10, finalWidth - 20); // x, y, width
+            const stave = new Stave(10, 10, width - 20); // x, y, width
             
+            // Add clef
             stave.addClef(clef);
             
-            // Add the key signature based on the mode
-            stave.addKeySignature(keySig); 
+            // Add key signature
+            stave.addKeySignature(keySig);
             
             stave.setContext(context).draw();
 
             // --- Note Setup ---
             const note = new StaveNote({
-                keys: vfNotes, 
-                duration: 'w', 
+                keys: vfNotes, // Use the passed-in VexFlow notes (e.g., ['c/4', 'e/4'])
+                duration: 'q', 
                 clef: clef 
             });
             
-            // Add accidentals if VexFlow logic determines one is needed
-            notePartsData.forEach((part, index) => {
-                const accidentalType = part.accidental; 
-                
-                if (accidentalType) {
-                    // VexFlow's `addModifier` *internally* decides whether to display 
-                    // this accidental based on the key signature set on the stave.
-                    note.addModifier(new Accidental(accidentalType), index);
-                }
-            });
+            // Add accidentals if necessary
+            if (isNonDiatonicOrCKey) {
+                notePartsData.forEach((part, index) => {
+                    const accidentalType = part.accidental; // '#' or 'b'
+                    
+                    // We only explicitly add the accidental if the pitch is sharp or flat.
+                    if (accidentalType === '#') {
+                        note.addModifier(new Accidental("#"), index);
+                    } else if (accidentalType === 'b') {
+                        note.addModifier(new Accidental("b"), index);
+                    }
+                });
+            }
             
             // --- Voice and Drawing ---
-            const voice = new Voice({ num_beats: 4, beat_value: 4 }); 
+            const voice = new Voice({ num_beats: 1, beat_value: 4 }); 
             voice.addTickables([note]);
             
-            new Formatter().joinVoices([voice]).format([voice], finalWidth - 40); 
+            // Format and justify the notes to fit the stave width
+            new Formatter().joinVoices([voice]).format([voice], width - 40); 
             
+            // Render the notes
             voice.draw(context, stave);
         };
         
@@ -645,7 +659,10 @@
          * Renders the sheet music staff with the highlighted notes for the selected clef.
          */
         function drawSheetMusic() {
+            // Get the single container
             const container = document.getElementById('staff-display-single');
+            
+            // Clear previous content
             container.innerHTML = ''; 
 
             if (state.highlightedMidiNotes.length === 0) {
@@ -653,31 +670,34 @@
                  return;
             }
             
-            const mode = getCurrentMode();
-            
             // --- Common Setup ---
-            // Use parent container width, or a minimum size if it's not set yet.
-            const width = container.parentElement.offsetWidth > 450 ? 450 : container.parentElement.offsetWidth;
+            const width = container.offsetWidth > 450 ? 450 : container.offsetWidth;
             const height = 140; 
             
-            // Use the key signature that corresponds to the current mode (e.g., F Major key signature for D Aeolian)
-            const keySig = getVexFlowKeySignature(); 
-            
-            // Get the VexFlow note data, which includes the accidental to be applied *if needed*
-            const finalNoteParts = state.highlightedMidiNotes.map(midi => getVexFlowNoteParts(midi, mode));
-            const finalVexFlowNotes = finalNoteParts.map(p => p.vfNote);
+            const keySig = getVexFlowKeySignature();
+            // Flag is true for non-diatonic scales, Harmonic Minor, or if the key signature is 'C' (no sharps/flats)
+            const isNonDiatonicOrCKey = !getCurrentMode().isDiatonic || getCurrentMode().intervals.length !== 7 || state.currentModeId === 'harmonic_minor' || keySig === 'C';
+
+            let finalVexFlowNotes;
+            let finalNoteParts;
+
+            // --- Conditional Drawing Data Prep ---
+            // The notes in state.highlightedMidiNotes are now ALREADY TRANSPOSED to fit the staff.
+            finalNoteParts = state.highlightedMidiNotes.map(getVexFlowNoteParts);
+            finalVexFlowNotes = finalNoteParts.map(p => p.vfNote);
 
             // --- Draw the Staff ---
-            drawStaff(container, state.currentClef, finalVexFlowNotes, finalNoteParts, keySig, width, height);
+            drawStaff(container, state.currentClef, finalVexFlowNotes, finalNoteParts, keySig, isNonDiatonicOrCKey, width, height);
         }
 
-        // --- KEYBOARD RENDERING HELPERS (Unchanged) ---
+        // --- KEYBOARD RENDERING HELPERS (Rest of the file is largely unchanged) ---
         
         /**
          * Returns the correctly spelled note name (sharp or flat) for a MIDI note/pitch class,
-         * based on the accidental preference. (Used for Keyboard labels)
+         * based on the accidental preference.
          */
         function getKeyboardNoteName(pitchClass, currentKeyName) {
+            // White keys (C, D, E, F, G, A, B) are always spelled the same.
             const enharmonicPair = {
                  1: { sharp: 'C#', flat: 'Db' },
                  3: { sharp: 'D#', flat: 'Eb' },
@@ -690,6 +710,7 @@
                 return KEYS[pitchClass]; 
             }
 
+            // Decide whether to use flat spelling based on preference
             const shouldUseFlatSpelling = state.accidentalPreference === 'flat';
 
             if (shouldUseFlatSpelling) {
@@ -730,6 +751,7 @@
             if (isWhiteKey) {
                 return whiteKeyIndex * WKW;
             } else {
+                // Black keys are positioned relative to the white key to their immediate left (which is midi - 1)
                 const leftWhiteKeyIndex = getWhiteKeyIndex(midi - 1);
                 const leftWhiteKeyX = leftWhiteKeyIndex * WKW;
                 const seamX = leftWhiteKeyX + WKW;
@@ -765,12 +787,15 @@
             const scaleSteps = mode.steps;
             const scaleIntervals = mode.intervals;
             
+            // --- Determine the base MIDI for the Tonic (Root Key) of the scale (duplicated logic from above) ---
             let tonicMidi;
-            if (state.currentKeyIndex >= 0 && state.currentKeyIndex <= 6) { 
-                tonicMidi = 60 + state.currentKeyIndex; 
-            } else { 
-                tonicMidi = 48 + state.currentKeyIndex; 
+            if (state.currentKeyIndex >= 0 && state.currentKeyIndex <= 6) { // C (0) to F# (6)
+                tonicMidi = 60 + state.currentKeyIndex; // C4 (60) to F#4 (66)
+            } else { // G (7) to B (11)
+                tonicMidi = 48 + state.currentKeyIndex; // G3 (55) to B3 (59)
             }
+            // --- END TONIC CALCULATION ---
+
 
             for (let i = 0; i < scaleSteps.length; i++) { 
                 const step = scaleSteps[i];
@@ -788,6 +813,7 @@
 
                 const nextNoteMidi = currentNoteMidi + stepInSemitones;
                 
+                // Ensure we don't try to draw steps for notes outside the rendered range
                 if (currentNoteMidi < START_MIDI || nextNoteMidi > END_MIDI) continue;
 
                 const x1 = getKeyCenterX(currentNoteMidi);
@@ -839,10 +865,12 @@
             const svg = document.getElementById('piano-keyboard-svg');
             const highlightedMidiNotes = state.highlightedMidiNotes; 
             
+            // Set SVG size based on new calculated width (3120px)
             svg.setAttribute('width', `${KEYBOARD_CONFIG.KEYBOARD_WIDTH}px`);
             svg.setAttribute('viewBox', `0 0 ${KEYBOARD_CONFIG.KEYBOARD_WIDTH} ${KEYBOARD_CONFIG.KEYBOARD_HEIGHT}`);
             svg.innerHTML = ''; 
             
+            // Ensure step visualizer track width is updated to match the new keyboard width
             document.getElementById('step-visualizer-track').style.width = KEYBOARD_CONFIG.KEYBOARD_WIDTH + 'px';
 
             const WKW = KEYBOARD_CONFIG.WHITE_KEY_WIDTH;
@@ -850,6 +878,7 @@
             const WKH = KEYBOARD_CONFIG.WHITE_KEY_HEIGHT;
             const Y_START = KEYBOARD_CONFIG.KEY_Y_START;
             
+            // Determine which highlight color set to use
             const useInvertedColors = state.visualizationMode === 'chord' && state.currentInversion > 0;
             
             const whiteHighlightColor = useInvertedColors ? KEY_COLORS.INVERTED_HIGHLIGHT_WHITE : KEY_COLORS.HIGHLIGHT_WHITE;
@@ -876,14 +905,18 @@
                     
                     svg.appendChild(rect);
 
+                    // --- Labeling Logic for White Keys ---
                     let labelText = null;
                     let labelFill = isHighlighted ? KEY_COLORS.WHITE : '#4b5563'; 
                     
+                    // Calculate Octave for display: 
                     const octave = Math.floor(key.midi / 12) - 1;
 
                     if (isHighlighted) {
+                         // Use the function to determine the spelling 
                          labelText = getKeyboardNoteName(key.pitchClass, state.currentKeyName); 
                     } else if (key.name === 'C' || key.name === 'F') {
+                        // Label C and F keys (for easier reference)
                         labelText = `${key.name}${octave}`;
                     }
 
@@ -922,6 +955,7 @@
 
                     svg.appendChild(rect);
                     
+                    // Black Key Labeling: Shows name if highlighted 
                     if (isHighlighted) {
                         const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
                         text.setAttribute('x', x + BKW / 2);
@@ -931,6 +965,7 @@
                         text.setAttribute('font-weight', '600');
                         text.setAttribute('fill', KEY_COLORS.WHITE);
                         
+                        // Use current key to determine flat/sharp spelling
                         const noteLabel = getKeyboardNoteName(key.pitchClass, state.currentKeyName);
                         text.textContent = noteLabel;
                         
@@ -941,28 +976,36 @@
             
             const pianoContainer = document.getElementById('piano-container');
             
+            // --- UPDATED SCROLLING LOGIC: Center the entire span of the chord ---
+            
             if (state.highlightedMidiNotes.length > 0) {
                 const firstMidi = state.highlightedMidiNotes[0];
                 const lastMidi = state.highlightedMidiNotes[state.highlightedMidiNotes.length - 1];
 
+                // Find the X position of the leftmost edge of the first key
                 const startKeyX = getKeyXPosition(firstMidi);
 
+                // Find the X position of the rightmost edge of the last key
                 const lastKeyData = PIANO_KEY_DATA.find(k => k.midi === lastMidi);
                 
                 if (lastKeyData) {
                     const lastKeyWidth = lastKeyData.isWhite ? KEYBOARD_CONFIG.WHITE_KEY_WIDTH : KEYBOARD_CONFIG.BLACK_KEY_WIDTH;
                     const endKeyX = getKeyXPosition(lastMidi) + lastKeyWidth;
 
+                    // Calculate the center of the total visual span
                     const spanCenter = (startKeyX + endKeyX) / 2;
                     
                     const containerWidth = pianoContainer.offsetWidth;
 
+                    // Calculate the scroll position needed to center the span's midpoint.
                     let centerScrollX = spanCenter - (containerWidth / 2);
 
+                    // Clamp the scroll position to prevent scrolling out of bounds
                     centerScrollX = Math.max(0, centerScrollX);
                     centerScrollX = Math.min(KEYBOARD_CONFIG.KEYBOARD_WIDTH - containerWidth, centerScrollX);
 
                     requestAnimationFrame(() => {
+                        // Smoothly scroll to the center position
                         pianoContainer.scroll({ left: centerScrollX, behavior: 'smooth' });
                     });
                 }
@@ -971,12 +1014,16 @@
         
         function renderKeySelect() {
             const select = document.getElementById('key-select');
+            // Use the new KEY_COMBO_NAMES
             select.innerHTML = KEY_COMBO_NAMES.map((keyName) => {
                 const isSelected = keyName === state.currentKeyName;
                 return `<option value="${keyName}" ${isSelected ? 'selected' : ''}>${keyName}</option>`;
             }).join('');
         }
         
+        /**
+         * Renders the accidental preference switch. (NEW)
+         */
         function renderAccidentalSwitch() {
             const container = document.getElementById('accidental-switch-container');
             const isSharp = state.accidentalPreference === 'sharp';
@@ -986,55 +1033,68 @@
                 <div class="flex border border-gray-300 rounded-lg shadow-sm overflow-hidden bg-white">
                     <button onclick="handleAccidentalPreferenceChange('sharp')"
                             class="flex-1 py-2 px-3 text-sm font-semibold transition duration-150 
-                                ${isSharp ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}"
-                            title="The default display of accidentals will prefer sharps (e.g., F# over Gb).">
+                                ${isSharp ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}">
                         Sharp (#)
                     </button>
                     <button onclick="handleAccidentalPreferenceChange('flat')"
                             class="flex-1 py-2 px-3 text-sm font-semibold transition duration-150 
-                                ${!isSharp ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}"
-                            title="The default display of accidentals will prefer flats (e.g., Gb over F#).">
+                                ${!isSharp ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}">
                         Flat (b)
                     </button>
                 </div>
             `;
         }
         
+        /**
+         * Renders all scale modes, filtering out pentatonic for Chord View.
+         */
         function renderModeSelect() {
             const select = document.getElementById('mode-select');
             
-            const allModes = Object.entries(SCALE_MODES).map(([id, mode]) => ({ id, ...mode }));
+            const allModes = Object.entries(SCALE_MODES);
             let modesToRender = allModes;
 
             if (state.visualizationMode === 'chord') {
-                modesToRender = allModes.filter(mode => 
+                // Filter: Only allow 7-note diatonic scales in Chord View
+                modesToRender = allModes.filter(([id, mode]) => 
                     mode.isDiatonic && mode.intervals.length === 7
                 );
                 
-                const currentModeExists = modesToRender.some(mode => mode.id === state.currentModeId);
+                // If the current mode is a filtered-out one (like pentatonic), reset to 'major'
+                const currentModeExists = modesToRender.some(([id]) => id === state.currentModeId);
                 if (!currentModeExists) {
                      state.currentModeId = 'major';
                      state.currentDegree = 1; 
                 }
             }
             
-            select.innerHTML = modesToRender.map(mode => 
-                `<option value="${mode.id}" ${mode.id === state.currentModeId ? 'selected' : ''}>${mode.name}</option>`
+            select.innerHTML = modesToRender.map(([id, mode]) => 
+                `<option value="${id}" ${id === state.currentModeId ? 'selected' : ''}>${mode.name}</option>`
             ).join('');
         }
         
+        /**
+         * Updates the Chord View and Scale View buttons with Tailwind classes for blue active state.
+         */
         function renderVisualizationModeButtons() {
             const isChord = state.visualizationMode === 'chord';
             
             const chordBtn = document.getElementById('mode-chord-btn');
             const scaleBtn = document.getElementById('mode-scale-btn');
 
+            // Classes for the ACTIVE (blue) state
             const activeClasses = ['bg-blue-700', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-300', 'border-blue-700'];
+            
+            // Classes for the INACTIVE (gray/white) state
             const inactiveClasses = ['bg-white', 'text-gray-700', 'hover:bg-gray-200', 'border-gray-300', 'shadow-sm'];
 
             const updateButton = (btn, isActive) => {
                 if (!btn) return;
+                
+                // Toggle active classes
                 activeClasses.forEach(cls => btn.classList.toggle(cls, isActive));
+                
+                // Toggle inactive classes
                 inactiveClasses.forEach(cls => btn.classList.toggle(cls, !isActive));
             };
 
@@ -1053,7 +1113,9 @@
             
             const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord' && state.currentDegree !== 8;
 
+            // Adjust grid layout dynamically
             container.classList.remove('sm:grid-cols-7', 'sm:grid-cols-5', 'sm:grid-cols-8');
+            // Using grid-cols-4 and sm:grid-cols-8 (desktop)
             container.classList.add(numDegrees === 8 ? 'sm:grid-cols-8' : 'sm:grid-cols-5');
 
 
@@ -1062,7 +1124,7 @@
                 const isActive = degree === state.currentDegree;
                 
                 const qualityIndex = index; 
-                const isInvrted = isActive && state.currentInversion > 0; 
+                const isInvrted = isActive && state.currentInversion > 0; // Flag for inverted state
 
                 let inversionSuffix = '';
                 let qualityDisplay = '';
@@ -1070,12 +1132,15 @@
                 let secondaryButtonText = '';
                 
                 if (isScaleView) {
+                    // SCALE VIEW: Use simple Arabic numeral (1, 2, 3...)
                     mainButtonText = degree.toString(); 
                 } else {
+                    // CHORD VIEW: Use Roman numeral and chord quality/inversion
                     mainButtonText = romanNumeral;
                     qualityDisplay = mode.isDiatonic && mode.intervals.length === 7 ? triadQualities[qualityIndex] : '';
                     
                     if (isActive && degree <= 7 && canInvert && state.currentInversion > 0) {
+                         // Use common figured bass shorthand for display on the buttons
                          inversionSuffix = state.currentInversion === 1 ? ' / 6' : ' / 6/4';
                     }
                     secondaryButtonText = `${qualityDisplay}${inversionSuffix}`;
@@ -1084,8 +1149,10 @@
                 let buttonClasses = 'bg-gray-100 text-gray-700 hover:bg-gray-300 shadow-sm';
 
                 if (isActive && !isInvrted) {
+                    // Active, Root Position
                     buttonClasses = 'bg-blue-700 text-white ring-4 ring-blue-300 transform scale-105 shadow-xl';
                 } else if (isInvrted) {
+                    // Active, INVERTED Position: Use strong contrasting style (Indigo + Yellow ring)
                     buttonClasses = 'bg-indigo-600 text-white ring-4 ring-yellow-400 transform scale-105 shadow-2xl border-2 border-white';
                 }
 
@@ -1102,89 +1169,44 @@
             }).join('');
         }
 
+        /**
+         * Renders the combined key/mode and chord/note info into the staff header.
+         */
         function renderStaffHeader() {
             const headerElement = document.getElementById('staff-header-text');
             if (!headerElement) return;
 
-            const detailedText = getDetailedHighlightName(); 
-            const keyModeText = getSimplifiedKeyName(); 
+            const detailedText = getDetailedHighlightName(); // e.g., "CMaj (I) / 6" or "C (1)"
+            const keyModeText = getSimplifiedKeyName(); // e.g., "C Ionian"
 
+            // Combine into a concise format: Key Mode | Chord/Note Info
+            // Example: C Ionian | CMaj (I) / 6
             const displayString = `${keyModeText} | ${detailedText}`;
             
             headerElement.textContent = displayString;
         }
         
-        function getSimplifiedKeyName() {
-            const rootName = state.currentKeyName;
-            const modeName = getCurrentMode().name;
-            return `${rootName} ${modeName.replace(/\s*\(.*\)/, '')}`; 
-        }
-
-        function getDetailedHighlightName() {
-            const mode = getCurrentMode();
-            const intervals = mode.intervals;
-            const degree = state.currentDegree;
-
-            let degreeInterval;
-            if (degree === 8) {
-                degreeInterval = 12;
-            } else {
-                if (degree > intervals.length) {
-                    degreeInterval = 0; 
-                } else {
-                    degreeInterval = intervals[degree - 1]; 
-                }
-            }
-            
-            const highlightRootIndex = (state.currentKeyIndex + degreeInterval) % 12;
-            
-            const highlightRootName = getKeyboardNoteName(highlightRootIndex, state.currentKeyName); 
-            
-            const degreeIndex = (degree === 8) ? 0 : degree - 1;
-
-            if (state.visualizationMode === 'chord' && mode.isDiatonic && mode.intervals.length === 7) {
-                const romanNumeral = mode.qualities[degreeIndex];
-                const quality = mode.triadQualities[degreeIndex];
-                
-                let inversionText = '';
-                if (state.currentInversion === 1) {
-                    inversionText = ' / 6';
-                } else if (state.currentInversion === 2) {
-                    inversionText = ' / 6/4';
-                }
-
-                return `${highlightRootName}${quality} (${romanNumeral})${inversionText}`;
-            } else {
-                let degreeText;
-                if (degree === 1) {
-                    degreeText = '1';
-                } else if (degree === 8) {
-                    degreeText = '8';
-                } else {
-                    degreeText = degree.toString();
-                }
-                
-                return `${highlightRootName} (${degreeText})`;
-            }
-        }
-
         // --- HANDLERS ---
         
         function updateUI() {
+            // Renders mode select and handles scale filtering/resetting state.currentModeId if needed
             renderModeSelect(); 
 
             const mode = getCurrentMode();
             
+            // Check for degree bounds
             if (state.currentDegree > mode.degrees) {
                 state.currentDegree = 1;
             }
             
+            // Check for inversion validity
             const canInvert = mode.isDiatonic && mode.intervals.length === 7 && state.visualizationMode === 'chord' && state.currentDegree !== 8;
             
             if (!canInvert) {
                 state.currentInversion = 0;
             }
 
+            // Step 1: Calculate the initial 'preferred' MIDI notes for the key/degree/inversion.
             let rawMidiNotes;
             if (state.visualizationMode === 'chord') {
                 rawMidiNotes = calculateChordMidiNotes(
@@ -1192,13 +1214,15 @@
                     state.currentDegree,
                     state.currentInversion 
                 );
-            } else { 
+            } else { // 'scale' mode
                 rawMidiNotes = calculateSingleScaleMidiNote(
                     state.currentKeyIndex, 
                     state.currentDegree
                 );
             }
 
+            // Step 2: Transpose the raw notes to fit the selected staff's range.
+            // This transposed set is the FINAL MIDI NOTES used for BOTH the staff and the keyboard.
             let finalMidiNotes;
             if (state.currentClef === 'treble') {
                 finalMidiNotes = calculateTrebleClefNotes(rawMidiNotes);
@@ -1212,16 +1236,15 @@
             
             state.highlightedPitchClasses = state.highlightedMidiNotes.map(midi => midi % 12);
             
+            // Render UI components
             renderKeySelect();
-            renderAccidentalSwitch(); 
+            renderAccidentalSwitch(); // NEW: Render the accidental switch
             renderChordButtons();
-            renderStaffHeader(); 
+            renderStaffHeader(); // Updates the consolidated header text
             renderStepVisualizer(); 
-            renderVisualizationModeButtons(); 
-            
-            // CRITICAL ORDER CHANGE: Draw staff before keyboard for correct container width measurement
-            drawSheetMusic(); 
+            renderVisualizationModeButtons(); // Updates button active states
             drawKeyboard(); 
+            drawSheetMusic(); 
         }
 
         function handleKeyChange(keyName) {
@@ -1257,6 +1280,7 @@
 
             if (degree === state.currentDegree) {
                 if (canInvert) {
+                    // Cycle inversion if already selected
                     state.currentInversion = (state.currentInversion + 1) % 3; 
                 } else {
                     state.currentInversion = 0;
@@ -1276,6 +1300,8 @@
         
         // --- PWA Registration (Existing functionality) ---
         function registerPwa() {
+            // Note: Keeping this for potential desktop PWA installation, but the core PWA 
+            // experience is not tied to the viewport meta tag.
             const manifestContent = {
                 "name": "TheoryViz",
                 "short_name": "TheoryViz",
@@ -1300,6 +1326,7 @@
         // --- APPLICATION STARTUP ---
         
         window.onload = () => {
+             // Re-initialize PIANO_KEY_DATA for the full 88-key range
              PIANO_KEY_DATA.length = 0;
              for (let i = START_MIDI; i <= END_MIDI; i++) {
                  PIANO_KEY_DATA.push({
@@ -1310,10 +1337,13 @@
                  });
              }
 
+             // Initialize the UI elements and draw the first state
              updateUI();
              
+             // Register PWA for installation capability
              registerPwa();
 
+             // Initial scroll to center on the default C4 key (MIDI 60) for a good starting view
              const pianoContainer = document.getElementById('piano-container');
              if (pianoContainer) {
                 const c4Center = getKeyCenterX(60); 
