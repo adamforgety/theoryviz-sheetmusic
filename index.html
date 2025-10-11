@@ -177,6 +177,7 @@
 
         const SCALE_MODES = {
             'major': {
+                id: 'major',
                 name: 'Ionian (Major)',
                 intervals: [0, 2, 4, 5, 7, 9, 11],
                 steps: ["W", "W", "H", "W", "W", "W", "H"],
@@ -189,6 +190,7 @@
                 accidentals: [] 
             },
             'natural_minor': {
+                id: 'natural_minor',
                 name: 'Aeolian (Natural Minor)',
                 intervals: [0, 2, 3, 5, 7, 8, 10],
                 steps: ["W", "H", "W", "W", "H", "W", "W"],
@@ -201,6 +203,7 @@
                 accidentals: [] 
             },
             'harmonic_minor': {
+                id: 'harmonic_minor',
                 name: 'Harmonic Minor',
                 intervals: [0, 2, 3, 5, 7, 8, 11], 
                 steps: ["W", "H", "W", "W", "H", "1.5", "H"], 
@@ -211,10 +214,10 @@
                 isDiatonic: true, 
                 keySignatureRootOffset: 3, 
                 // CRUCIAL: Specifies that the 7th degree is *raised* relative to the key signature (natural minor)
-                // A raised note is achieved by adding a '#' or natural to the note that is already in the key.
                 accidentals: [{ degree: 7, alteration: '+' }] 
             },
             'major_pentatonic': {
+                id: 'major_pentatonic',
                 name: 'Major Pentatonic',
                 intervals: [0, 2, 4, 7, 9],
                 steps: ["W", "W", "1.5", "W", "1.5"], 
@@ -227,6 +230,7 @@
                 accidentals: []
             },
             'minor_pentatonic': {
+                id: 'minor_pentatonic',
                 name: 'Minor Pentatonic',
                 intervals: [0, 3, 5, 7, 10],
                 steps: ["1.5", "W", "W", "1.5", "W"],
@@ -280,7 +284,7 @@
             highlightedPitchClasses: [], 
             highlightedMidiNotes: [], 
             isCenteringEnabled: true, 
-            visualizationMode: 'scale',
+            visualizationMode: 'chord', // Default to chord for initial load visibility
             currentClef: 'treble',
             accidentalPreference: 'sharp' 
         };
@@ -298,9 +302,6 @@
              const noteNames = preference === 'flat' ? FLAT_KEYS : SHARP_KEYS;
              return noteNames[pitchClass];
         }
-
-        // ... (calculateChordMidiNotes, calculateSingleScaleMidiNote, 
-        // calculateTrebleClefNotes, calculateBassClefNotes are unchanged) ...
 
         /**
          * Calculates the specific MIDI notes for the selected chord, applying the current inversion.
@@ -499,22 +500,18 @@
 
         /**
          * Converts MIDI note to VexFlow string and identifies required explicit accidental.
-         * The VexFlow logic for accidentals works on this principle:
-         * 1. Determine the correct **natural note name** (A-G) and octave from the MIDI pitch.
-         * 2. Determine the **required alteration** (#, b, n) needed to move the natural note *to* the actual MIDI pitch.
-         * 3. VexFlow compares this required alteration against the key signature. If they differ, it draws an explicit accidental.
-         * * The primary goal here is to correctly find the **required accidental** based on the chosen spelling preference.
          */
         function getVexFlowNoteParts(midi, mode) {
             const pitchClass = midi % 12;
             const octave = Math.floor(midi / 12) - 1; 
             
+            // 1. Determine the raw note name (e.g., 'c#', 'db', 'c') based on preference.
             const rawNoteName = getRawNoteName(pitchClass, state.accidentalPreference);
 
             let vfNote;
             let requiredAccidental = ''; 
             
-            // Set the VexFlow note string (e.g., 'c/4')
+            // Set the VexFlow note string (e.g., 'c/4') and the accidental that must be applied to get to the MIDI pitch.
             if (rawNoteName.length > 1) {
                 vfNote = `${rawNoteName.charAt(0)}/${octave}`;
                 requiredAccidental = rawNoteName.slice(1); 
@@ -524,45 +521,62 @@
             }
 
             // --- CRITICAL FIX: Harmonic Minor Alterations ---
-            // If the scale has a special fixed accidental (like the raised 7th in Harmonic Minor),
-            // we must ensure the `requiredAccidental` reflects this, even if the pitch class
-            // would normally be spelled differently due to the key signature.
-            
             if (mode.id === 'harmonic_minor' && mode.intervals.length === 7) {
-                // 1. Calculate the degree of the current note (1st, 2nd, 3rd...)
-                const intervals = SCALE_MODES.natural_minor.intervals; // Use the natural minor intervals for degree indexing
+                // We check if this note's pitch matches the 7th degree's pitch.
+                const harmonicMinorIntervals = mode.intervals;
+                const naturalMinorIntervals = SCALE_MODES.natural_minor.intervals;
                 const rootPitch = state.currentKeyIndex;
                 
-                // Find the index 'i' in the interval list that corresponds to the note's pitch class
-                const degreeIndex = intervals.findIndex(interval => (rootPitch + interval) % 12 === pitchClass);
-                const degree = degreeIndex + 1; // 1-based degree (1 to 7)
+                // The 7th degree is at index 6 (interval 11) in harmonic minor.
+                const seventhDegreeInterval = harmonicMinorIntervals[6];
 
-                // 2. Check if this degree has a fixed alteration (e.g., the 7th)
-                const fixedAlteration = mode.accidentals.find(acc => acc.degree === degree);
+                // Calculate the actual pitch of the 7th degree (relative to the key's tonic)
+                const seventhDegreePitch = (rootPitch + seventhDegreeInterval) % 12;
 
-                if (fixedAlteration) {
-                    const naturalMidi = midi - (pitchClass - (PITCH_CLASS_TO_NATURAL[pitchClass].charCodeAt(0) - 'c'.charCodeAt(0)));
+                if (pitchClass === seventhDegreePitch) {
+                    // This is the raised 7th note. We need to force the accidental.
                     
-                    // The raised 7th is 1 semitone higher than the natural minor's 7th degree (which is the natural minor's pitch)
-                    const requiredPitch = naturalMidi + 1; // e.g., if F is the natural note, we want F# or G flat pitch
+                    // 1. Find the natural note name corresponding to this pitch class (e.g., G for G#/Ab)
+                    const naturalNoteName = PITCH_CLASS_TO_NATURAL[pitchClass];
+                    vfNote = `${naturalNoteName}/${octave}`;
 
-                    // Determine if the required note (F# in our example) is a sharp, flat, or natural relative to the natural note (F)
+                    // 2. The 7th degree in Natural Minor (the key signature's scale) is `naturalMinorIntervals[6]`.
+                    const naturalSeventhInterval = naturalMinorIntervals[6];
+                    
+                    // The difference in semitones between the current note and the natural minor's 7th note.
+                    const naturalMinorSeventhPitch = (rootPitch + naturalSeventhInterval) % 12;
+                    
+                    const alteration = (pitchClass - naturalMinorSeventhPitch + 12) % 12;
+
+                    // If the alteration is 0, the note is the same as the natural minor's 7th. It should be a natural or a flat.
+                    // If the alteration is 1, it's raised (e.g., G# vs G or G# vs Gb).
+                    // In Harmonic Minor, the 7th degree is *always* raised 1 semitone from the natural minor's 7th.
+                    
+                    // Instead of calculating alteration, just compare the current note to the natural note name
+                    // (the white key note for this pitch class).
+                    
+                    // Find the midi for the natural note (e.g., G4 for G#4)
+                    const naturalMidi = Math.floor(midi / 12) * 12 + (naturalNoteName.charCodeAt(0) - 'c'.charCodeAt(0));
+
                     const diff = midi - naturalMidi; // 0=Natural, 1=Sharp, -1=Flat, 2=Double Sharp, -2=Double Flat
                     
                     if (diff === 1) {
                         requiredAccidental = '#';
                     } else if (diff === 2) {
                         requiredAccidental = '##';
+                    } else if (diff === 0) {
+                        // This note is a natural, but the key signature might flatten it (e.g., E in C minor has a Bb key signature).
+                        // If E is the 7th degree, it's raised to a natural E from Eb (in C minor).
+                        // We must explicitly use 'n' if the note is a natural and its accidental is 'n'.
+                        requiredAccidental = 'n'; 
                     } else if (diff === -1) {
                         requiredAccidental = 'b';
                     } else if (diff === -2) {
                         requiredAccidental = 'bb';
-                    } else {
-                        requiredAccidental = 'n'; // Must be a natural if the 7th in the natural minor is already flat
                     }
                     
-                    // We must use the natural note name for the base if an accidental is forced
-                    vfNote = `${PITCH_CLASS_TO_NATURAL[pitchClass]}/${octave}`;
+                    // NOTE: This logic is complex because VexFlow's auto-accidental only works perfectly for
+                    // truly diatonic modes. This special case forces the correct spelling.
                 }
             }
             // --- END CRITICAL FIX ---
@@ -582,12 +596,16 @@
             }
 
             const renderer = new Renderer(container, Renderer.Backends.SVG);
-            renderer.resize(width, height);
+            
+            // Use a minimum width for the renderer to prevent container issues.
+            const finalWidth = Math.max(width, 250); 
+            renderer.resize(finalWidth, height);
+            
             const context = renderer.getContext();
             context.clear(); 
             
             // --- Stave (Staff) Setup ---
-            const stave = new Stave(10, 10, width - 20); // x, y, width
+            const stave = new Stave(10, 10, finalWidth - 20); // x, y, width
             
             stave.addClef(clef);
             
@@ -618,7 +636,7 @@
             const voice = new Voice({ num_beats: 4, beat_value: 4 }); 
             voice.addTickables([note]);
             
-            new Formatter().joinVoices([voice]).format([voice], width - 40); 
+            new Formatter().joinVoices([voice]).format([voice], finalWidth - 40); 
             
             voice.draw(context, stave);
         };
@@ -638,7 +656,8 @@
             const mode = getCurrentMode();
             
             // --- Common Setup ---
-            const width = container.offsetWidth > 450 ? 450 : container.offsetWidth;
+            // Use parent container width, or a minimum size if it's not set yet.
+            const width = container.parentElement.offsetWidth > 450 ? 450 : container.parentElement.offsetWidth;
             const height = 140; 
             
             // Use the key signature that corresponds to the current mode (e.g., F Major key signature for D Aeolian)
@@ -1199,8 +1218,10 @@
             renderStaffHeader(); 
             renderStepVisualizer(); 
             renderVisualizationModeButtons(); 
-            drawKeyboard(); 
+            
+            // CRITICAL ORDER CHANGE: Draw staff before keyboard for correct container width measurement
             drawSheetMusic(); 
+            drawKeyboard(); 
         }
 
         function handleKeyChange(keyName) {
