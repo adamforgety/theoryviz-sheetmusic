@@ -77,15 +77,15 @@
                         </select>
                 </div>
 
+                <div id="accidental-switch-container">
+                </div>
+
                 <div>
                     <label for="mode-select" class="block text-xs font-medium text-gray-700 mb-1">Scale Type</label>
                     <select id="mode-select" onchange="handleModeChange(event.target.value)"
                             class="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm transition">
                         </select>
                 </div>
-                
-                <div id="accidental-switch-container">
-                    </div>
 
             </div>
             
@@ -774,7 +774,7 @@
             const BKW = KEYBOARD_CONFIG.BLACK_KEY_WIDTH;
             return x + (isWhite ? WKW / 2 : BKW / 2);
         }
-
+        
         /**
          * Renders the W/H/1.5 step indicators in the track above the keyboard.
          */
@@ -806,16 +806,16 @@
                 
                 const currentNoteMidi = tonicMidi + scaleIntervals[i];
 
-                let stepInSemitones;
+                let stepInSemotones;
                 if (i === scaleSteps.length - 1) {
-                    stepInSemitones = 12 - scaleIntervals[i];
+                    stepInSemotones = 12 - scaleIntervals[i];
                 } else {
-                    stepInSemitones = scaleIntervals[i + 1] - scaleIntervals[i];
+                    stepInSemotones = scaleIntervals[i + 1] - scaleIntervals[i];
                 }
 
-                if (stepInSemitones <= 0) continue; 
+                if (stepInSemotones <= 0) continue; 
 
-                const nextNoteMidi = currentNoteMidi + stepInSemitones;
+                const nextNoteMidi = currentNoteMidi + stepInSemotones;
                 
                 // Ensure we don't try to draw steps for notes outside the rendered range
                 if (currentNoteMidi < START_MIDI || nextNoteMidi > END_MIDI) continue;
