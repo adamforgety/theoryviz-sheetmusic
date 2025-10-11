@@ -77,9 +77,6 @@
                         </select>
                 </div>
 
-                <div id="accidental-switch-container">
-                    </div>
-
                 <div>
                     <label for="mode-select" class="block text-xs font-medium text-gray-700 mb-1">Scale Type</label>
                     <select id="mode-select" onchange="handleModeChange(event.target.value)"
@@ -87,6 +84,9 @@
                         </select>
                 </div>
                 
+                <div id="accidental-switch-container">
+                    </div>
+
             </div>
             
             <div class="grid grid-cols-2 gap-4 mt-4"> 
@@ -148,18 +148,10 @@
         ];
         
         // UPDATED: Map to link combined display name back to the 0-11 pitch class
-        // This is now used only to get the base pitch class index (0-11).
         const KEY_TO_PITCH_CLASS = {
             "C": 0, "C#/Db": 1, "D": 2, "D#/Eb": 3, "E": 4, 
             "F": 5, "F#/Gb": 6, "G": 7, "G#/Ab": 8, "A": 9, 
             "A#/Bb": 10, "B": 11
-        };
-        
-        // Helper to check if a key name is enharmonic
-        const IS_ENHARMONIC = {
-             "C": false, "C#/Db": true, "D": false, "D#/Eb": true, "E": false, 
-             "F": false, "F#/Gb": true, "G": false, "G#/Ab": true, "A": false, 
-             "A#/Bb": true, "B": false
         };
         
         // Sharp-based names (C, C#, D, D#, ...) - Used for default internal logic
@@ -170,12 +162,13 @@
         // Sharp-based names (c, c#, d, d#, ...) - Used for VexFlow note string generation when sharp preference is selected
         const SHARP_KEYS = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];
         
+        // Removed FLAT_ROOT_KEYS as the accidental preference switch now handles spelling.
+
         const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11]; 
         
-        // VexFlow Key Signature Map (Mixed sharps/flats for proper VexFlow rendering)
-        const KEY_SIGNATURE_MAP = [
-            'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'
-        ];
+        // NEW FIX: Separate VexFlow Key Signature Maps for Sharp and Flat preference
+        const SHARP_KEY_SIGNATURES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const FLAT_KEY_SIGNATURES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
         const SCALE_MODES = {
             'major': {
@@ -273,7 +266,7 @@
             isCenteringEnabled: true, 
             visualizationMode: 'scale',
             currentClef: 'treble',
-            accidentalPreference: 'sharp' // 'sharp' or 'flat'. Defaults to sharp.
+            accidentalPreference: 'sharp' // NEW: 'sharp' or 'flat'
         };
 
         // --- CORE MUSIC THEORY LOGIC ---
@@ -286,18 +279,7 @@
          * Gets the simplified name of the current key and mode (e.g., "C Ionian").
          */
         function getSimplifiedKeyName() {
-            // If the key is enharmonic (e.g., C#/Db), use the selected spelling from preference.
-            const rootPitchClass = KEY_TO_PITCH_CLASS[state.currentKeyName];
-            const isEnharmonicKey = IS_ENHARMONIC[state.currentKeyName];
-            
-            let rootName;
-            if (isEnharmonicKey) {
-                // Determine the spelling based on the current preference
-                rootName = getKeyboardNoteName(rootPitchClass, state.currentKeyName);
-            } else {
-                rootName = state.currentKeyName; // C, D, E, F, G, A, B
-            }
-            
+            const rootName = state.currentKeyName;
             const modeName = getCurrentMode().name;
             return `${rootName} ${modeName.replace(/\s*\(.*\)/, '')}`; 
         }
@@ -590,15 +572,12 @@
         
         /**
          * Calculates the appropriate key signature string for VexFlow.
+         * * FIX: Now uses accidentalPreference to select between sharp and flat key signatures.
          */
         function getVexFlowKeySignature() {
             const mode = getCurrentMode();
             const modeId = state.currentModeId;
             const keyIndex = state.currentKeyIndex; 
-            
-            // The key signature MUST be based on the fundamental pitch class (state.currentKeyIndex)
-            // regardless of the accidental spelling preference, as VexFlow handles the canonical
-            // key signatures (e.g., all flats or all sharps for a given sound).
 
             // Diatonic 7-note scales (Major and Natural Minor) get a key signature
             if (mode.isDiatonic && mode.intervals.length === 7) {
@@ -608,8 +587,12 @@
                     targetIndex = (keyIndex + 3) % 12;
                 }
                 
-                // Use VexFlow's standard mixed sharp/flat key name for the signature
-                return KEY_SIGNATURE_MAP[targetIndex]; 
+                // --- FIX: Use accidentalPreference to select the enharmonic key signature ---
+                const isSharpPreference = state.accidentalPreference === 'sharp';
+                const keySigMap = isSharpPreference ? SHARP_KEY_SIGNATURES : FLAT_KEY_SIGNATURES;
+                
+                return keySigMap[targetIndex]; 
+                // --- END FIX ---
 
             } else {
                 // All other modes/scales (e.g., pentatonic, harmonic minor) get no key signature
@@ -657,9 +640,6 @@
                     const accidentalType = part.accidental; // '#' or 'b'
                     
                     // We only explicitly add the accidental if the pitch is sharp or flat.
-                    // VexFlow will automatically suppress a redundant natural/sharp/flat 
-                    // if it is already in the key signature, but we need to supply 
-                    // the chosen spelling (e.g., 'db/4' with a 'b' accidental).
                     if (accidentalType === '#') {
                         note.addModifier(new Accidental("#"), index);
                     } else if (accidentalType === 'b') {
@@ -1046,26 +1026,12 @@
         }
         
         /**
-         * Renders the accidental preference switch. (UPDATED)
+         * Renders the accidental preference switch. (NEW)
          */
         function renderAccidentalSwitch() {
             const container = document.getElementById('accidental-switch-container');
             const isSharp = state.accidentalPreference === 'sharp';
-            const isEnharmonicKey = IS_ENHARMONIC[state.currentKeyName];
             
-            // If the key is not enharmonic, hide or disable the switch
-            if (!isEnharmonicKey) {
-                container.innerHTML = `
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Accidental Spelling</label>
-                        <div class="py-2 px-3 text-sm text-gray-400 bg-gray-200 border border-gray-300 rounded-lg shadow-inner">
-                            Default Spelling Used
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
             container.innerHTML = `
                 <label class="block text-xs font-medium text-gray-700 mb-1">Accidental Spelling</label>
                 <div class="flex border border-gray-300 rounded-lg shadow-sm overflow-hidden bg-white">
@@ -1276,7 +1242,7 @@
             
             // Render UI components
             renderKeySelect();
-            renderAccidentalSwitch(); // Renders the accidental switch (will hide if non-enharmonic key)
+            renderAccidentalSwitch(); // NEW: Render the accidental switch
             renderChordButtons();
             renderStaffHeader(); // Updates the consolidated header text
             renderStepVisualizer(); 
@@ -1287,24 +1253,8 @@
 
         function handleKeyChange(keyName) {
             state.currentKeyName = keyName;
-            
-            // 1. Get the base pitch class index (0-11)
-            const baseIndex = KEY_TO_PITCH_CLASS[keyName];
-            
-            // 2. Check if the key is enharmonic (e.g., C#/Db)
-            const isEnharmonicKey = IS_ENHARMONIC[keyName];
+            state.currentKeyIndex = KEY_TO_PITCH_CLASS[keyName];
 
-            // 3. Set the accidental preference and key index logic
-            if (isEnharmonicKey) {
-                // For enharmonic keys, keep the existing accidental preference, which determines spelling
-                // The currentKeyIndex is simply the pitch class.
-                state.currentKeyIndex = baseIndex;
-            } else {
-                // For single keys (C, D, E, F, G, A, B), the spelling is unambiguous
-                state.accidentalPreference = 'sharp'; // Force sharp to ensure correct key name/logic
-                state.currentKeyIndex = baseIndex; 
-            }
-            
             state.currentDegree = 1; 
             state.currentInversion = 0; 
             updateUI();
@@ -1323,12 +1273,8 @@
         }
         
         function handleAccidentalPreferenceChange(preference) {
-             // Only update if the current key is enharmonic
-             if (IS_ENHARMONIC[state.currentKeyName]) {
-                 state.accidentalPreference = preference;
-                 // state.currentKeyIndex remains the same (pitch class)
-                 updateUI();
-             }
+             state.accidentalPreference = preference;
+             updateUI();
         }
 
         function handleDegreeChange(degree) {
